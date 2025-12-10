@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del data_gen_p2.py p2_rainbow_data.csv)",
+      "Bash(rm:*)",
+      "Bash(python data_gen_p2.py:*)",
+      "Bash(python train_p2.py:*)"
+    ]
+  }
+}

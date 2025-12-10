@@ -1,0 +1,2 @@
+architecture,n_samples,n_layers,n_epochs,hidden_size,total_parameters,train_samples,test_samples,mae_nm,mape_percent,rmse_nm,max_error_nm,r2_score,wavelength_nm,training_date
+3 layers x 64 neurons,1000,3,200,64,8513,800,200,0.9424365336326249,0.1788039202549504,1.8965323275996557,13.366666505015587,0.9995724574425922,550,2025-12-09 07:53:11

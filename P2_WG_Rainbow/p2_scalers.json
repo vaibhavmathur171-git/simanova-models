@@ -1,0 +1,19 @@
+{
+    "wavelength": {
+        "type": "MinMaxScaler",
+        "min": 400.0092156536147,
+        "max": 699.9702931027696,
+        "scale": 0.003333765862237596,
+        "data_min": -1.3335370677264573
+    },
+    "angle": {
+        "type": "StandardScaler",
+        "mean": -54.9849398171687,
+        "std": 14.331901349001548
+    },
+    "period": {
+        "type": "StandardScaler",
+        "mean": 478.99582824384197,
+        "std": 124.10460286157354
+    }
+}
