@@ -16,7 +16,28 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. Robust Model Architecture ---
+# --- 2. EXECUTIVE SUMMARY (NEW) ---
+st.title("🌈 P2: Rainbow Surrogate & DOE")
+
+with st.container():
+    st.markdown("### 🎯 Project Executive Summary")
+    c1, c2, c3, c4 = st.columns(4)
+    
+    with c1:
+        st.info("**1. The Engineering Goal**\n\nManage **Chromatic Dispersion** (Rainbows) in AR glasses. Design a grating that works for Green but minimizes error for Red and Blue.")
+    
+    with c2:
+        st.info("**2. The Physics**\n\nLight bends differently based on color ($\lambda$).\n**Red bends more, Blue bends less.** This creates a 'fan' of angles that blurs the image.")
+    
+    with c3:
+        st.info("**3. The AI Strategy**\n\n**Multi-Variable Surrogate:** Train a Neural Net on 50,000 ray-traces to instantly predict the 'Rainbow Spread' for any design.")
+        
+    with c4:
+        st.success("**4. The DOE Goal**\n\n**Optimization:** We ran a Design of Experiments to find the smallest, fastest 'Brain' (Neural Net) that still captures the physics accurately.")
+
+st.divider()
+
+# --- 3. Robust Model Architecture ---
 class FlexibleMLP(nn.Module):
     def __init__(self, hidden_neurons=64):
         super(FlexibleMLP, self).__init__()
@@ -29,34 +50,29 @@ class FlexibleMLP(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_neurons, 1)
         )
-
     def forward(self, x):
         return self.net(x)
 
 def load_robust_model(path, neurons):
     model = FlexibleMLP(hidden_neurons=int(neurons))
-    if not os.path.exists(path):
-        return None
+    if not os.path.exists(path): return None
     try:
         state_dict = torch.load(path, map_location=torch.device('cpu'))
         new_state_dict = {}
         model_keys = list(model.state_dict().keys())
         for i, (k_saved, v_saved) in enumerate(state_dict.items()):
-            if i < len(model_keys):
-                new_state_dict[model_keys[i]] = v_saved
+            if i < len(model_keys): new_state_dict[model_keys[i]] = v_saved
         model.load_state_dict(new_state_dict)
         model.eval()
         return model
-    except Exception as e:
-        return None
+    except: return None
 
-# --- 3. Helper Functions ---
+# --- 4. Helper Functions ---
 @st.cache_data
 def load_doe_data():
     paths = ['data/p2_doe_results.csv', 'Data/p2_doe_results.csv']
     for p in paths:
-        if os.path.exists(p):
-            return pd.read_csv(p)
+        if os.path.exists(p): return pd.read_csv(p)
     return None
 
 def physics_equation(target_angle, wavelength_nm):
@@ -70,9 +86,7 @@ def get_output_angle(period, wavelength_nm):
     val = np.clip(val, -1, 1)
     return np.degrees(np.arcsin(val))
 
-# --- 4. Main App ---
-st.title("🌈 P2: Rainbow Surrogate & DOE")
-
+# --- 5. Main App Tabs ---
 doe_df = load_doe_data()
 best_neurons = 64
 if doe_df is not None:
@@ -81,19 +95,17 @@ if doe_df is not None:
 
 tab1, tab2 = st.tabs(["🛠️ Engineering Design (Rainbow)", "🔬 Research Results (DOE)"])
 
-# --- TAB 1: ENGINEERING (Unchanged) ---
+# --- TAB 1: ENGINEERING ---
 with tab1:
     col_input, col_viz = st.columns([1, 2])
     with col_input:
-        st.subheader("1. Design Parameters")
-        st.info("Goal: Optimize Grating for **Green (550nm)**")
+        st.subheader("1. Design Inputs")
         target_angle = st.slider("Target Angle (deg)", -80.0, -30.0, -50.0)
-        
         model = load_robust_model('models/p2_rainbow_model.pth', best_neurons)
+        
         if model:
             x = torch.tensor([[ (target_angle+80)/50, (550-400)/300 ]], dtype=torch.float32)
-            with torch.no_grad():
-                pred = model(x).item()
+            with torch.no_grad(): pred = model(x).item()
             ai_period = pred * 800 + 200
             st.success(f"**AI Grating Period:** {ai_period:.1f} nm")
         else:
@@ -138,72 +150,42 @@ with tab1:
         ax.legend(loc='upper right')
         st.pyplot(fig)
 
-# --- TAB 2: DOE RESULTS (Revised with Scope) ---
+# --- TAB 2: DOE RESULTS ---
 with tab2:
     if doe_df is not None:
-        # --- A. SCOPE & VARIABLES (Top Section) ---
+        # A. SCOPE
         st.markdown("### 📋 1. Experimental Scope (Variables)")
-        st.caption("The complete parameter space explored in this study.")
-        
-        # Calculate Unique Values dynamically from the CSV
         sizes = sorted(doe_df['Size'].unique())
         neurons = sorted(doe_df['Neurons'].unique())
         epochs = sorted(doe_df['Epochs'].unique())
         
-        # Display as clear Info Cards
         c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.info(f"**Data Sizes ({len(sizes)})**\n\n" + ", ".join([f"{x:,}" for x in sizes]))
-        with c2:
-            st.info(f"**Neurons ({len(neurons)})**\n\n" + ", ".join(map(str, neurons)))
-        with c3:
-            st.info(f"**Epochs ({len(epochs)})**\n\n" + ", ".join(map(str, epochs)))
-        with c4:
-            st.metric("Total Runs", len(doe_df), delta="Full Factorial")
-            
+        with c1: st.info(f"**Data Sizes**\n\n" + ", ".join([f"{x:,}" for x in sizes]))
+        with c2: st.info(f"**Neurons**\n\n" + ", ".join(map(str, neurons)))
+        with c3: st.info(f"**Epochs**\n\n" + ", ".join(map(str, epochs)))
+        with c4: st.metric("Total Runs", len(doe_df))
         st.divider()
 
-        # --- B. 3D Interaction Plot ---
+        # B. 3D PLOT
         st.subheader("2. The Landscape of Loss (3D)")
-        st.caption("Interact: Rotate to see how Model Complexity (Neurons) and Data Scale affect performance.")
         doe_df['Log_Loss'] = np.log10(doe_df['Final_Test_Loss'])
-        fig_3d = px.scatter_3d(
-            doe_df, x='Neurons', y='Size', z='Log_Loss',
-            color='Log_Loss', size='Epochs', color_continuous_scale='Viridis_r',
-            hover_data=['Final_Test_Loss'], labels={'Log_Loss': 'Log(Loss)'}
-        )
+        fig_3d = px.scatter_3d(doe_df, x='Neurons', y='Size', z='Log_Loss', color='Log_Loss', size='Epochs', color_continuous_scale='Viridis_r')
         st.plotly_chart(fig_3d, use_container_width=True)
         
-        # --- C. Primary Trends (Line Plots) ---
+        # C. 2D TRENDS
         st.divider()
-        st.subheader("3. Primary Trends (Sensitivity Analysis)")
-        
-        col_trend1, col_trend2 = st.columns(2)
-        
-        with col_trend1:
-            st.markdown("**📉 Data Size Sensitivity**")
-            st.caption("Effect of Dataset Size on Loss (at 50 Epochs)")
-            df_trend1 = doe_df[doe_df['Epochs'] == 50].sort_values('Size')
-            fig1 = px.line(
-                df_trend1, x='Size', y='Final_Test_Loss', color='Neurons',
-                markers=True, log_y=True, title="Loss vs Data Size (Log Scale)"
-            )
+        st.subheader("3. Primary Trends")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("Data Size Sensitivity (at 50 Epochs)")
+            df_t1 = doe_df[doe_df['Epochs'] == 50].sort_values('Size')
+            fig1 = px.line(df_t1, x='Size', y='Final_Test_Loss', color='Neurons', markers=True, log_y=True)
             st.plotly_chart(fig1, use_container_width=True)
-            
-        with col_trend2:
-            st.markdown("**📉 Training Duration Sensitivity**")
-            st.caption("Effect of Training Epochs on Loss (at Max Data)")
-            max_size = doe_df['Size'].max()
-            df_trend2 = doe_df[doe_df['Size'] == max_size].sort_values('Epochs')
-            fig2 = px.line(
-                df_trend2, x='Epochs', y='Final_Test_Loss', color='Neurons',
-                markers=True, log_y=True, title=f"Loss vs Epochs (Data Size={max_size})"
-            )
+        with c2:
+            st.caption("Training Duration Sensitivity (at Max Data)")
+            df_t2 = doe_df[doe_df['Size'] == doe_df['Size'].max()].sort_values('Epochs')
+            fig2 = px.line(df_t2, x='Epochs', y='Final_Test_Loss', color='Neurons', markers=True, log_y=True)
             st.plotly_chart(fig2, use_container_width=True)
-
-        # --- D. Raw Data ---
-        with st.expander("View Raw DOE Data"):
-            st.dataframe(doe_df, use_container_width=True)
-        
+            
     else:
-        st.warning("Data not found. Please ensure 'p2_doe_results.csv' is in the data folder.")
+        st.warning("Data not found.")
