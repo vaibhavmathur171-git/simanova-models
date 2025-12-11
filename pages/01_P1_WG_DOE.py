@@ -14,24 +14,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. EXECUTIVE SUMMARY (NEW) ---
+# --- 2. EXECUTIVE SUMMARY ---
 st.title("📐 P1: Mono-Waveguide Design Tool")
 
 with st.container():
     st.markdown("### 🎯 Project Executive Summary")
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     
     with c1:
         st.info("**1. The Engineering Goal**\n\nFind the exact **Grating Period ($\Lambda$)** required to steer light to a specific target angle (e.g., -50°).")
+        st.warning("**4. Data Generation Strategy**\n\n**Synthetic Physics:** We generated 10,000 samples using the analytical Grating Equation.\n\n**Simulating Reality:** Added Gaussian Noise ($\sigma = 0.5^{\circ}$) to input angles to simulate real-world metrology errors and fabrication tolerances.")
     
     with c2:
         st.info("**2. The Physics**\n\n**The Grating Equation:**\n$n_{out} \sin(\\theta_m) = n_{in} \sin(\\theta_{in}) + \\frac{m \lambda}{\Lambda}$")
     
     with c3:
-        st.info("**3. The AI Strategy**\n\n**Neural Surrogate:** Train a small Neural Net to learn this physics equation perfectly, replacing the need for explicit math solvers.")
-        
-    with c4:
-        st.success("**4. Why This Matters?**\n\nDemonstrates that AI can 'learn' physics laws. If it works for this simple equation, it can work for complex simulations where no equation exists.")
+        st.info("**3. The AI Strategy**\n\n**Neural Surrogate:** Train a small Neural Net (MLP) to learn this physics equation perfectly.\n\n**Why?** Demonstrates that AI can 'learn' physics laws from noisy data, acting as a robust inverse solver.")
 
 st.divider()
 

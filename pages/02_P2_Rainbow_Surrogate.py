@@ -16,24 +16,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. EXECUTIVE SUMMARY (NEW) ---
+# --- 2. EXECUTIVE SUMMARY ---
 st.title("🌈 P2: Rainbow Surrogate & DOE")
 
 with st.container():
     st.markdown("### 🎯 Project Executive Summary")
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     
     with c1:
         st.info("**1. The Engineering Goal**\n\nManage **Chromatic Dispersion** (Rainbows) in AR glasses. Design a grating that works for Green but minimizes error for Red and Blue.")
+        st.warning("**4. Data Generation Strategy**\n\n**Analytical Solver:** We generated 50,000 spectral samples by solving the Grating Equation across 400-700nm.\n\n**Note:** These are fast analytical solutions, not full Maxwell/FDTD simulations, allowing for rapid dataset scaling for the DOE.")
     
     with c2:
         st.info("**2. The Physics**\n\nLight bends differently based on color ($\lambda$).\n**Red bends more, Blue bends less.** This creates a 'fan' of angles that blurs the image.")
     
     with c3:
-        st.info("**3. The AI Strategy**\n\n**Multi-Variable Surrogate:** Train a Neural Net on 50,000 ray-traces to instantly predict the 'Rainbow Spread' for any design.")
-        
-    with c4:
-        st.success("**4. The DOE Goal**\n\n**Optimization:** We ran a Design of Experiments to find the smallest, fastest 'Brain' (Neural Net) that still captures the physics accurately.")
+        st.info("**3. The AI Strategy**\n\n**Multi-Variable Surrogate:** Train a Neural Net to instantly predict the 'Rainbow Spread'.\n\n**DOE Goal:** We ran a Design of Experiments to find the smallest, fastest 'Brain' (Neural Net) that still captures the physics accurately.")
 
 st.divider()
 
