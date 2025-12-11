@@ -65,9 +65,12 @@ MIT License
 
 Your Name
 """)
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
+import torch
 import numpy as np
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -126,8 +129,10 @@ def predict_period_polynomial(angle_deg):
 @st.cache_data
 def load_data():
     try:
-        doe_results = pd.read_csv('doe_results.csv')
-        predictions = pd.read_csv('predictions.csv')
+        # --- Load Data from the new 'data' folder ---
+# This tells Python to look inside the 'data' subfolder
+        df = pd.read_csv('data/p1_doe_results.csv')
+        metadata = pd.read_csv('data/p1_metadata.csv')
         training_history = pd.read_csv('training_history.csv')
         metadata = pd.read_csv('model_metadata.csv')
         return doe_results, predictions, training_history, metadata, True
