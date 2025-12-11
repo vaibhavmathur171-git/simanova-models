@@ -138,13 +138,33 @@ with tab1:
         ax.legend(loc='upper right')
         st.pyplot(fig)
 
-# --- TAB 2: DOE RESULTS (Revised Plots) ---
+# --- TAB 2: DOE RESULTS (Revised with Scope) ---
 with tab2:
-    st.markdown("### 🔬 Design of Experiments (DOE) Insights")
-    
     if doe_df is not None:
-        # A. 3D Interaction Plot (Kept as requested)
-        st.subheader("1. The Landscape of Loss (3D)")
+        # --- A. SCOPE & VARIABLES (Top Section) ---
+        st.markdown("### 📋 1. Experimental Scope (Variables)")
+        st.caption("The complete parameter space explored in this study.")
+        
+        # Calculate Unique Values dynamically from the CSV
+        sizes = sorted(doe_df['Size'].unique())
+        neurons = sorted(doe_df['Neurons'].unique())
+        epochs = sorted(doe_df['Epochs'].unique())
+        
+        # Display as clear Info Cards
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.info(f"**Data Sizes ({len(sizes)})**\n\n" + ", ".join([f"{x:,}" for x in sizes]))
+        with c2:
+            st.info(f"**Neurons ({len(neurons)})**\n\n" + ", ".join(map(str, neurons)))
+        with c3:
+            st.info(f"**Epochs ({len(epochs)})**\n\n" + ", ".join(map(str, epochs)))
+        with c4:
+            st.metric("Total Runs", len(doe_df), delta="Full Factorial")
+            
+        st.divider()
+
+        # --- B. 3D Interaction Plot ---
+        st.subheader("2. The Landscape of Loss (3D)")
         st.caption("Interact: Rotate to see how Model Complexity (Neurons) and Data Scale affect performance.")
         doe_df['Log_Loss'] = np.log10(doe_df['Final_Test_Loss'])
         fig_3d = px.scatter_3d(
@@ -154,62 +174,35 @@ with tab2:
         )
         st.plotly_chart(fig_3d, use_container_width=True)
         
-        # B. The Primary Trends (UPDATED TO LINE PLOTS)
+        # --- C. Primary Trends (Line Plots) ---
         st.divider()
-        st.subheader("2. Primary Trends (Line Plots)")
+        st.subheader("3. Primary Trends (Sensitivity Analysis)")
         
         col_trend1, col_trend2 = st.columns(2)
         
         with col_trend1:
-            st.markdown("**📉 Data Size vs. Loss**")
-            st.caption("How performance improves with more data (Fixed at 50 Epochs)")
-            
-            # Filter: Show only the 'fully trained' runs (Epochs=50) to make the comparison fair
-            # This prevents zig-zag lines caused by mixing Epoch=10 and Epoch=50 data
+            st.markdown("**📉 Data Size Sensitivity**")
+            st.caption("Effect of Dataset Size on Loss (at 50 Epochs)")
             df_trend1 = doe_df[doe_df['Epochs'] == 50].sort_values('Size')
-            
             fig1 = px.line(
-                df_trend1, 
-                x='Size', 
-                y='Final_Test_Loss', 
-                color='Neurons', # Separate line for each model size
-                markers=True,    # Show dots at data points
-                log_y=True,      # Log scale makes it easier to see small errors
-                title="Loss vs Data Size (Log Scale)"
+                df_trend1, x='Size', y='Final_Test_Loss', color='Neurons',
+                markers=True, log_y=True, title="Loss vs Data Size (Log Scale)"
             )
             st.plotly_chart(fig1, use_container_width=True)
             
         with col_trend2:
-            st.markdown("**📉 Epochs vs. Loss**")
-            st.caption("Learning stability (Fixed at Max Dataset Size)")
-            
-            # Filter: Show only the 'max data' runs to see pure learning capability
+            st.markdown("**📉 Training Duration Sensitivity**")
+            st.caption("Effect of Training Epochs on Loss (at Max Data)")
             max_size = doe_df['Size'].max()
             df_trend2 = doe_df[doe_df['Size'] == max_size].sort_values('Epochs')
-            
             fig2 = px.line(
-                df_trend2, 
-                x='Epochs', 
-                y='Final_Test_Loss', 
-                color='Neurons',
-                markers=True,
-                log_y=True,
-                title=f"Loss vs Epochs (Data Size={max_size})"
+                df_trend2, x='Epochs', y='Final_Test_Loss', color='Neurons',
+                markers=True, log_y=True, title=f"Loss vs Epochs (Data Size={max_size})"
             )
             st.plotly_chart(fig2, use_container_width=True)
 
-        # C. Secondary Metrics (Expander)
-        st.divider()
-        with st.expander("See Secondary Metrics (Speed & Architecture)"):
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("**Brain Size vs. Accuracy**")
-                grouped = doe_df.groupby('Neurons')['Final_Test_Loss'].mean()
-                st.bar_chart(grouped)
-            with c2:
-                st.markdown("**Training Time Impact**")
-                subset = doe_df[doe_df['Neurons'] == best_neurons]
-                st.line_chart(data=subset, x='Size', y='Training_Time_Sec')
+        # --- D. Raw Data ---
+        with st.expander("View Raw DOE Data"):
             st.dataframe(doe_df, use_container_width=True)
         
     else:
