@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import plotly.express as px  # NEW: For 3D plotting
+import plotly.express as px
 import os
 
 # --- 1. Page Config ---
@@ -138,63 +138,67 @@ with tab1:
         ax.legend(loc='upper right')
         st.pyplot(fig)
 
-# --- TAB 2: DOE RESULTS (The Major Upgrade) ---
+# --- TAB 2: DOE RESULTS (Revised Plots) ---
 with tab2:
     st.markdown("### 🔬 Design of Experiments (DOE) Insights")
     
     if doe_df is not None:
-        # A. 3D Interaction Plot
+        # A. 3D Interaction Plot (Kept as requested)
         st.subheader("1. The Landscape of Loss (3D)")
         st.caption("Interact: Rotate to see how Model Complexity (Neurons) and Data Scale affect performance.")
-        
-        # We use Log Loss because loss values can get very tiny
         doe_df['Log_Loss'] = np.log10(doe_df['Final_Test_Loss'])
-        
         fig_3d = px.scatter_3d(
-            doe_df,
-            x='Neurons',
-            y='Size',
-            z='Log_Loss',
-            color='Log_Loss',
-            size='Epochs',
-            color_continuous_scale='Viridis_r', # Inverted: Bright Yellow = Low Loss (Good)
-            hover_data=['Final_Test_Loss', 'Training_Time_Sec'],
-            labels={'Log_Loss': 'Log(Loss)', 'Size': 'Dataset Size'},
-            title="3D Optimization Surface"
+            doe_df, x='Neurons', y='Size', z='Log_Loss',
+            color='Log_Loss', size='Epochs', color_continuous_scale='Viridis_r',
+            hover_data=['Final_Test_Loss'], labels={'Log_Loss': 'Log(Loss)'}
         )
         st.plotly_chart(fig_3d, use_container_width=True)
         
-        # B. The Primary Trends (Top of Page)
+        # B. The Primary Trends (UPDATED TO LINE PLOTS)
         st.divider()
-        st.subheader("2. Primary Trends: What drives performance?")
+        st.subheader("2. Primary Trends (Line Plots)")
         
         col_trend1, col_trend2 = st.columns(2)
         
         with col_trend1:
             st.markdown("**📉 Data Size vs. Loss**")
-            st.caption("Does adding more data linearly decrease error?")
-            # Simple Scatter: X=Size, Y=Loss
-            st.scatter_chart(
-                doe_df,
-                x='Size',
-                y='Final_Test_Loss',
-                color='Neurons', # Color helps separate model capacities
-                size='Epochs'
+            st.caption("How performance improves with more data (Fixed at 50 Epochs)")
+            
+            # Filter: Show only the 'fully trained' runs (Epochs=50) to make the comparison fair
+            # This prevents zig-zag lines caused by mixing Epoch=10 and Epoch=50 data
+            df_trend1 = doe_df[doe_df['Epochs'] == 50].sort_values('Size')
+            
+            fig1 = px.line(
+                df_trend1, 
+                x='Size', 
+                y='Final_Test_Loss', 
+                color='Neurons', # Separate line for each model size
+                markers=True,    # Show dots at data points
+                log_y=True,      # Log scale makes it easier to see small errors
+                title="Loss vs Data Size (Log Scale)"
             )
+            st.plotly_chart(fig1, use_container_width=True)
             
         with col_trend2:
             st.markdown("**📉 Epochs vs. Loss**")
-            st.caption("Did we train long enough?")
-            # Simple Scatter: X=Epochs, Y=Loss
-            st.scatter_chart(
-                doe_df,
-                x='Epochs',
-                y='Final_Test_Loss',
-                color='Size',
-                size='Neurons'
+            st.caption("Learning stability (Fixed at Max Dataset Size)")
+            
+            # Filter: Show only the 'max data' runs to see pure learning capability
+            max_size = doe_df['Size'].max()
+            df_trend2 = doe_df[doe_df['Size'] == max_size].sort_values('Epochs')
+            
+            fig2 = px.line(
+                df_trend2, 
+                x='Epochs', 
+                y='Final_Test_Loss', 
+                color='Neurons',
+                markers=True,
+                log_y=True,
+                title=f"Loss vs Epochs (Data Size={max_size})"
             )
+            st.plotly_chart(fig2, use_container_width=True)
 
-        # C. Secondary Metrics (Moved Down)
+        # C. Secondary Metrics (Expander)
         st.divider()
         with st.expander("See Secondary Metrics (Speed & Architecture)"):
             c1, c2 = st.columns(2)
@@ -206,7 +210,6 @@ with tab2:
                 st.markdown("**Training Time Impact**")
                 subset = doe_df[doe_df['Neurons'] == best_neurons]
                 st.line_chart(data=subset, x='Size', y='Training_Time_Sec')
-                
             st.dataframe(doe_df, use_container_width=True)
         
     else:
