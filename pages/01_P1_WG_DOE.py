@@ -1,4 +1,4 @@
-ST.markdown("""
+st.markdown("""
 # P1-Mono Waveguide ML Design Tool
 
 **AI-Powered Inverse Design for Optical Gratings**
