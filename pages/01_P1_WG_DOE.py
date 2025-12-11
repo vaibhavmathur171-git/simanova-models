@@ -41,8 +41,8 @@ def grating_equation_angle(period_nm):
 @st.cache_data
 def load_data():
     try:
-        # Try loading from data folder with p1_ prefix
-        data_dir = 'data'
+        # Try loading from Data folder with p1_ prefix
+        data_dir = 'Data'
         doe_results = pd.read_csv(os.path.join(data_dir, 'p1_doe_results.csv'))
         predictions = pd.read_csv(os.path.join(data_dir, 'p1_predictions.csv'))
         training_history = pd.read_csv(os.path.join(data_dir, 'p1_training_history.csv'))
