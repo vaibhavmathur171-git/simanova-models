@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+import streamlit as st
+import pandas as pd
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+
+
 st.markdown("""
 # P1-Mono Waveguide ML Design Tool
 
