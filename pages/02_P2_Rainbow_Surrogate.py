@@ -16,7 +16,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. EXECUTIVE SUMMARY ---
+# ... (Imports and Page Config remain the same) ...
+
+# --- 2. EXECUTIVE SUMMARY (UPDATED) ---
 st.title("🌈 P2: Rainbow Surrogate & DOE")
 
 with st.container():
@@ -25,7 +27,7 @@ with st.container():
     
     with c1:
         st.info("**1. The Engineering Goal**\n\nManage **Chromatic Dispersion** (Rainbows) in AR glasses. Design a grating that works for Green but minimizes error for Red and Blue.")
-        st.warning("**4. Data Generation Strategy**\n\n**Analytical Solver:** We generated 50,000 spectral samples by solving the Grating Equation across 400-700nm.\n\n**Note:** These are fast analytical solutions, not full Maxwell/FDTD simulations, allowing for rapid dataset scaling for the DOE.")
+        st.warning("**4. Data Generation Strategy**\n\n**Ideal Physics (Noise-Free):** We generated 50,000 samples using the exact Grating Equation.\n\n**Why No Noise?** Unlike P1, we intentionally removed noise to determine the theoretical limit of the Neural Network's capacity. This allows the DOE to isolate 'Brain Size' effects without being masked by measurement uncertainty.")
     
     with c2:
         st.info("**2. The Physics**\n\nLight bends differently based on color ($\lambda$).\n**Red bends more, Blue bends less.** This creates a 'fan' of angles that blurs the image.")
@@ -34,6 +36,8 @@ with st.container():
         st.info("**3. The AI Strategy**\n\n**Multi-Variable Surrogate:** Train a Neural Net to instantly predict the 'Rainbow Spread'.\n\n**DOE Goal:** We ran a Design of Experiments to find the smallest, fastest 'Brain' (Neural Net) that still captures the physics accurately.")
 
 st.divider()
+
+# ... (The rest of the code remains exactly the same) ...
 
 # --- 3. Robust Model Architecture ---
 class FlexibleMLP(nn.Module):
