@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:p1-mono-wg-doe.streamlit.app)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(dir \"C:\\Users\\apoor\\simanova_models\\data\")",
+      "Bash(copy \"C:\\Users\\apoor\\simanova_models\\P1-mono-WG-DOE\\doe_results.csv\" \"C:\\Users\\apoor\\simanova_models\\data\\p1_doe_results.csv\" /Y)",
+      "Bash(copy \"C:\\Users\\apoor\\simanova_models\\P1-mono-WG-DOE\\predictions.csv\" \"C:\\Users\\apoor\\simanova_models\\data\\p1_predictions.csv\" /Y)",
+      "Bash(copy:*)",
+      "Bash(cmd /c \"copy /Y \"\"C:\\Users\\apoor\\simanova_models\\P1-mono-WG-DOE\\doe_results.csv\"\" \"\"C:\\Users\\apoor\\simanova_models\\data\\p1_doe_results.csv\"\"\")",
+      "Bash(cmd /c:*)",
+      "Bash(streamlit run:*)",
+      "Bash(pip install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nReplicated P1 app from GitHub with full functionality\n\n- Updated P1 page with 3 tabs: Design Tool, Model Performance, DoE Analysis\n- Added Plotly charts for interactive visualizations\n- Added p1_predictions.csv and p1_training_history.csv data files\n- Added plotly to requirements.txt\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(git commit:*)",
+      "Bash(python:*)"
+    ]
+  }
+}
