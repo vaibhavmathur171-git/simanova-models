@@ -131,9 +131,22 @@ def load_pinn_model():
 
 @st.cache_data
 def load_doe_results():
-    """Load DOE results CSV."""
-    if os.path.exists(DOE_RESULTS_PATH):
-        return pd.read_csv(DOE_RESULTS_PATH)
+    """Load DOE results CSV with fallback paths."""
+    paths_to_try = [
+        "Data/p4_doe_results.csv",
+        "data/p4_doe_results.csv",
+        "./Data/p4_doe_results.csv",
+        "./data/p4_doe_results.csv",
+    ]
+    for path in paths_to_try:
+        if os.path.exists(path):
+            try:
+                df = pd.read_csv(path)
+                # Verify expected columns exist
+                if 'Loss_Total' in df.columns:
+                    return df
+            except Exception:
+                continue
     return None
 
 
