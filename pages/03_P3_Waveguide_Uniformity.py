@@ -1,14 +1,21 @@
 # -*- coding: utf-8 -*-
 """
 Project 3: Holographic Waveguide Uniformity
-Interactive dashboard for grating design and light uniformity prediction.
+Interactive dashboard for SRG waveguide design and AI prediction.
+
+Features:
+- Tab 1: Waveguide Designer (Engineering tool with real units)
+- Tab 2: AI Research Lab (DOE results and model comparison)
 """
 
 import streamlit as st
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import os
 
 # --- 1. Page Config ---
@@ -18,48 +25,78 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. CONSTANTS ---
+# =============================================================================
+# CONSTANTS (Engineering Units)
+# =============================================================================
 GRID_SIZE = 64
 ABSORPTION_FACTOR = 0.99
-MODEL_PATH = "models/p3_cnn_model.pth"
+
+# Physics Constants
+REFRACTIVE_INDEX = 1.7
+MAX_DEPTH = 400.0  # nm
+KOGELNIK_PERIOD = 800.0  # nm
+MAX_EFFICIENCY = 0.8
+
+# Depth Range
+DEPTH_MIN = 50.0   # nm
+DEPTH_MAX = 350.0  # nm
+
+# Model Paths
+MODEL_C_PATH = "models/p3_model_C.pth"
+DOE_RESULTS_PATH = "data/p3_doe_results.csv"
 
 
-# --- 3. MODEL DEFINITION (Must match training architecture) ---
-class WaveguideCNN(nn.Module):
+# =============================================================================
+# MODEL DEFINITION: Model C (Deep Receptive - Best)
+# =============================================================================
+class ModelC_DeepReceptive(nn.Module):
     """
-    Lightweight CNN for Image-to-Image regression.
-    Architecture: Conv(1->16) -> Conv(16->32) -> Conv(32->1)
+    Model C: "The Deep Receptive" (5-layer CNN)
+    Best performing model from DOE with 11x11 receptive field.
     """
     def __init__(self):
-        super(WaveguideCNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
-        self.relu1 = nn.ReLU()
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
-        self.relu2 = nn.ReLU()
-        self.conv3 = nn.Conv2d(32, 1, kernel_size=3, padding=1)
-        self.sigmoid = nn.Sigmoid()
+        super(ModelC_DeepReceptive, self).__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 1, kernel_size=3, padding=1),
+            nn.Sigmoid()
+        )
 
     def forward(self, x):
-        x = self.relu1(self.conv1(x))
-        x = self.relu2(self.conv2(x))
-        x = self.sigmoid(self.conv3(x))
-        return x
+        return self.net(x)
 
 
-# --- 4. PHYSICS ENGINE (Ground Truth) ---
+# =============================================================================
+# PHYSICS ENGINE (Kogelnik + Leaky Bucket)
+# =============================================================================
+def depth_to_efficiency(depth_nm: np.ndarray) -> np.ndarray:
+    """
+    Convert etch depth to grating efficiency using Kogelnik approximation.
+
+    Formula: Efficiency = 0.8 * sin^2(PI * depth / 800)
+
+    Peak efficiency (~0.8) occurs at ~200nm depth.
+    """
+    phase = np.pi * depth_nm / KOGELNIK_PERIOD
+    efficiency = MAX_EFFICIENCY * np.sin(phase) ** 2
+    return efficiency.astype(np.float32)
+
+
 def solve_light_propagation(efficiency_map: np.ndarray) -> np.ndarray:
     """
-    Solve the light propagation using the "Leaky Bucket" Energy Transport model.
+    Solve light propagation using the Leaky Bucket Energy Transport model.
 
     Physics:
-    - Light propagates from Left (x=0) to Right (x=63)
-    - At each pixel, light is extracted based on local grating efficiency
-    - Remaining energy undergoes 1% absorption loss per column
-
-    Algorithm (per column):
-    1. Extracted_Light = Current_Energy * Efficiency_Pixel
-    2. Remaining_Energy = (Current_Energy - Extracted_Light) * 0.99
-    3. Pass Remaining_Energy to next column (x+1)
+    - Light propagates Left (x=0) to Right (x=63)
+    - Each pixel extracts: Extracted = Energy * Efficiency
+    - Remaining energy: Remaining = (Energy - Extracted) * 0.99
     """
     grid_size = efficiency_map.shape[0]
     extracted_light = np.zeros((grid_size, grid_size), dtype=np.float32)
@@ -73,45 +110,53 @@ def solve_light_propagation(efficiency_map: np.ndarray) -> np.ndarray:
     return extracted_light
 
 
-# --- 5. GRATING GENERATOR (From User Controls) ---
-def generate_grating_from_params(gradient_slope: float, gradient_bias: float,
-                                  blob_intensity: float, blob_x: float,
-                                  blob_y: float, blob_size: float) -> np.ndarray:
+def generate_depth_map_from_params(mean_depth: float, gradient_correction: float,
+                                    process_noise: float) -> np.ndarray:
     """
-    Generate an efficiency map based on user-controlled parameters.
-    Combines a linear gradient with a Gaussian blob.
+    Generate an etch depth map based on engineering parameters.
+
+    Parameters:
+        mean_depth: Average etch depth in nm (50-350)
+        gradient_correction: Linear ramp coefficient (-1 to 1)
+                            Positive = deeper on right (compensates depletion)
+        process_noise: Manufacturing jitter in nm (0-20)
+
+    Returns:
+        depth_map: 2D array of etch depths in nanometers
     """
-    y, x = np.meshgrid(np.linspace(0, 1, GRID_SIZE),
-                       np.linspace(0, 1, GRID_SIZE), indexing='ij')
+    y, x = np.meshgrid(
+        np.linspace(0, 1, GRID_SIZE),
+        np.linspace(0, 1, GRID_SIZE),
+        indexing='ij'
+    )
 
-    # Linear gradient (left to right)
-    gradient = gradient_bias + gradient_slope * x
+    # Base depth with gradient correction
+    # gradient_correction of 1.0 means +100nm increase from left to right
+    depth_map = mean_depth + gradient_correction * 100.0 * (x - 0.5)
 
-    # Gaussian blob
-    center_x = blob_x * GRID_SIZE
-    center_y = blob_y * GRID_SIZE
-    sigma = blob_size * 15 + 5  # Range: 5 to 20
+    # Add manufacturing process noise (Gaussian)
+    if process_noise > 0:
+        noise = np.random.normal(0, process_noise, (GRID_SIZE, GRID_SIZE))
+        depth_map += noise
 
-    y_idx, x_idx = np.meshgrid(np.arange(GRID_SIZE), np.arange(GRID_SIZE), indexing='ij')
-    blob = blob_intensity * np.exp(-((x_idx - center_x)**2 + (y_idx - center_y)**2) / (2 * sigma**2))
+    # Clip to valid manufacturing range
+    depth_map = np.clip(depth_map, DEPTH_MIN, DEPTH_MAX)
 
-    # Combine and clip
-    efficiency_map = gradient + blob
-    efficiency_map = np.clip(efficiency_map, 0.0, 0.8)
-
-    return efficiency_map.astype(np.float32)
+    return depth_map.astype(np.float32)
 
 
-# --- 6. MODEL LOADING ---
+# =============================================================================
+# MODEL LOADING
+# =============================================================================
 @st.cache_resource
-def load_model():
-    """Load the trained CNN model with error handling."""
-    if not os.path.exists(MODEL_PATH):
+def load_model_c():
+    """Load the best model (Model C) with error handling."""
+    if not os.path.exists(MODEL_C_PATH):
         return None
 
     try:
-        model = WaveguideCNN()
-        state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'), weights_only=True)
+        model = ModelC_DeepReceptive()
+        state_dict = torch.load(MODEL_C_PATH, map_location=torch.device('cpu'), weights_only=True)
         model.load_state_dict(state_dict)
         model.eval()
         return model
@@ -120,38 +165,54 @@ def load_model():
         return None
 
 
-# --- 7. VISUALIZATION ---
-def create_heatmap_figure(data: np.ndarray, title: str, cmap: str = 'viridis'):
-    """Create a matplotlib heatmap with consistent styling."""
-    fig, ax = plt.subplots(figsize=(5, 5))
-    im = ax.imshow(data, cmap=cmap, vmin=0.0, vmax=1.0, origin='upper')
-    ax.set_title(title, fontsize=12, fontweight='bold')
-    ax.set_xlabel("X (Propagation Direction)")
-    ax.set_ylabel("Y")
-    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    ax.set_xticks([0, 32, 63])
-    ax.set_yticks([0, 32, 63])
-    plt.tight_layout()
+@st.cache_data
+def load_doe_results():
+    """Load DOE results CSV."""
+    if os.path.exists(DOE_RESULTS_PATH):
+        return pd.read_csv(DOE_RESULTS_PATH)
+    return None
+
+
+# =============================================================================
+# VISUALIZATION HELPERS
+# =============================================================================
+def create_plotly_heatmap(data: np.ndarray, title: str, colorscale: str = 'Viridis',
+                          zmin: float = None, zmax: float = None,
+                          colorbar_title: str = None) -> go.Figure:
+    """Create a Plotly heatmap with consistent styling."""
+    fig = go.Figure(data=go.Heatmap(
+        z=data,
+        colorscale=colorscale,
+        zmin=zmin,
+        zmax=zmax,
+        colorbar=dict(title=colorbar_title) if colorbar_title else None
+    ))
+
+    fig.update_layout(
+        title=dict(text=title, x=0.5, font=dict(size=14)),
+        xaxis_title="X (Propagation Direction)",
+        yaxis_title="Y",
+        yaxis=dict(scaleanchor="x", scaleratio=1, autorange="reversed"),
+        margin=dict(l=50, r=50, t=50, b=50),
+        height=400
+    )
+
     return fig
 
 
-def compute_uniformity_metrics(light_field: np.ndarray) -> dict:
-    """Compute uniformity metrics for the light output."""
+def compute_uniformity_score(light_field: np.ndarray) -> float:
+    """Compute uniformity score (0-100%). Higher is better."""
     mean_val = np.mean(light_field)
     std_val = np.std(light_field)
-    min_val = np.min(light_field)
-    max_val = np.max(light_field)
-    uniformity = 1.0 - (std_val / (mean_val + 1e-8))  # Higher is better
-    return {
-        'mean': mean_val,
-        'std': std_val,
-        'min': min_val,
-        'max': max_val,
-        'uniformity': max(0, uniformity)
-    }
+    if mean_val < 1e-8:
+        return 0.0
+    uniformity = max(0, 1.0 - (std_val / mean_val))
+    return uniformity * 100
 
 
-# --- 8. MAIN APP ---
+# =============================================================================
+# MAIN APP
+# =============================================================================
 st.title("🔦 P3: Holographic Waveguide Uniformity")
 
 # --- EXECUTIVE SUMMARY ---
@@ -162,195 +223,364 @@ with st.container():
     with c1:
         st.info(
             "**1. The Engineering Goal**\n\n"
-            "Achieve **Uniform Light Output** across an AR waveguide display. "
-            "Design grating patterns that extract light evenly from left to right, "
-            "preventing bright/dark spots."
+            "Achieve **Uniform Light Output** across an AR waveguide. "
+            "Design Surface Relief Grating (SRG) etch depths that extract "
+            "light evenly, preventing bright/dark spots."
         )
 
     with c2:
         st.info(
             "**2. The Physics**\n\n"
-            "**Leaky Bucket Model:** Light enters from the left edge and propagates right. "
-            "Each pixel extracts light based on local grating efficiency. "
-            "Energy depletes as it travels (1% absorption per column)."
+            "**Kogelnik + Leaky Bucket:** Etch depth (nm) maps to diffraction "
+            "efficiency via sin^2 response. Light depletes as it propagates "
+            "left-to-right with 1% absorption per column."
         )
 
     with c3:
         st.info(
             "**3. The AI Strategy**\n\n"
-            "**CNN Image-to-Image:** A 3-layer Convolutional Neural Network learns to predict "
-            "the 2D light output field from any input grating design. "
-            "Enables instant design iteration without running physics simulations."
+            "**Deep CNN (Model C):** 5-layer network with 11x11 receptive field "
+            "captures long-range energy depletion effects. Enables instant "
+            "design iteration vs. physics simulation."
         )
 
 st.divider()
 
-# --- SIDEBAR: GRATING DESIGNER ---
-st.sidebar.header("Grating Designer")
-st.sidebar.markdown("Adjust parameters to design your grating pattern.")
+# --- TABS ---
+tab1, tab2 = st.tabs(["🛠️ Waveguide Designer", "🔬 AI Research Lab (DOE)"])
 
-st.sidebar.subheader("Gradient Controls")
-gradient_slope = st.sidebar.slider(
-    "Gradient Slope",
-    min_value=-0.5, max_value=1.0, value=0.3, step=0.05,
-    help="Controls how efficiency changes from left to right"
-)
-gradient_bias = st.sidebar.slider(
-    "Gradient Bias",
-    min_value=0.0, max_value=0.5, value=0.2, step=0.05,
-    help="Base efficiency level across the grating"
-)
+# =============================================================================
+# TAB 1: WAVEGUIDE DESIGNER
+# =============================================================================
+with tab1:
+    # Sidebar controls
+    st.sidebar.header("Etch Depth Designer")
+    st.sidebar.markdown("Design your SRG waveguide grating.")
 
-st.sidebar.subheader("Blob Controls")
-blob_intensity = st.sidebar.slider(
-    "Blob Intensity",
-    min_value=0.0, max_value=0.5, value=0.2, step=0.05,
-    help="Strength of the local efficiency boost"
-)
-blob_x = st.sidebar.slider(
-    "Blob X Position",
-    min_value=0.0, max_value=1.0, value=0.5, step=0.1,
-    help="Horizontal position (0=left, 1=right)"
-)
-blob_y = st.sidebar.slider(
-    "Blob Y Position",
-    min_value=0.0, max_value=1.0, value=0.5, step=0.1,
-    help="Vertical position (0=top, 1=bottom)"
-)
-blob_size = st.sidebar.slider(
-    "Blob Size",
-    min_value=0.1, max_value=1.0, value=0.5, step=0.1,
-    help="Size of the efficiency blob"
-)
-
-# --- LOAD MODEL ---
-model = load_model()
-
-if model is None:
-    st.warning(
-        "**Model not found!** The file `models/p3_cnn_model.pth` is missing. "
-        "Run `python p3_train_model.py` to train the model first. "
-        "Showing Physics Ground Truth only."
+    st.sidebar.subheader("Depth Parameters")
+    mean_depth = st.sidebar.slider(
+        "Mean Etch Depth (nm)",
+        min_value=50, max_value=350, value=200, step=10,
+        help="Average etch depth across the grating. ~200nm gives peak efficiency."
     )
 
-# --- GENERATE GRATING ---
-efficiency_map = generate_grating_from_params(
-    gradient_slope, gradient_bias,
-    blob_intensity, blob_x, blob_y, blob_size
-)
+    gradient_correction = st.sidebar.slider(
+        "Gradient Correction",
+        min_value=-1.0, max_value=1.0, value=0.5, step=0.1,
+        help="Linear ramp to compensate for energy depletion. Positive = deeper on right."
+    )
 
-# --- RUN PHYSICS SIMULATION ---
-physics_output = solve_light_propagation(efficiency_map)
+    process_noise = st.sidebar.slider(
+        "Process Noise (nm)",
+        min_value=0, max_value=20, value=5, step=1,
+        help="Simulate manufacturing jitter/variation."
+    )
 
-# --- RUN AI PREDICTION ---
-if model is not None:
-    # Prepare input: (64, 64) -> (1, 1, 64, 64)
-    input_tensor = torch.from_numpy(efficiency_map).float()
-    input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, 64, 64)
+    # Generate button for noise regeneration
+    if st.sidebar.button("🎲 Regenerate Noise"):
+        st.rerun()
 
-    with torch.no_grad():
-        ai_output_tensor = model(input_tensor)
+    st.sidebar.divider()
+    st.sidebar.caption("P3: Waveguide Uniformity | SimaNova")
 
-    # Convert back: (1, 1, 64, 64) -> (64, 64)
-    ai_output = ai_output_tensor.squeeze().numpy()
-else:
-    ai_output = None
+    # Load model
+    model = load_model_c()
 
-# --- MAIN VISUALIZATION ---
-st.subheader("Design Visualization")
+    if model is None:
+        st.warning(
+            "**Model not found!** The file `models/p3_model_C.pth` is missing. "
+            "Run `python p3_doe_train.py` to train the models first."
+        )
 
-col1, col2, col3 = st.columns(3)
+    # Generate depth map
+    depth_map = generate_depth_map_from_params(mean_depth, gradient_correction, process_noise)
 
-with col1:
-    st.markdown("**Input Grating (Efficiency Map)**")
-    fig1 = create_heatmap_figure(efficiency_map, "Input Grating", cmap='plasma')
-    st.pyplot(fig1)
-    plt.close(fig1)
+    # Convert to efficiency (Kogelnik)
+    efficiency_map = depth_to_efficiency(depth_map)
 
-    # Metrics
-    st.caption(f"Min: {efficiency_map.min():.3f} | Max: {efficiency_map.max():.3f} | Mean: {efficiency_map.mean():.3f}")
+    # Run physics simulation
+    physics_output = solve_light_propagation(efficiency_map)
 
-with col2:
-    st.markdown("**AI Prediction (CNN Output)**")
-    if ai_output is not None:
-        fig2 = create_heatmap_figure(ai_output, "AI Prediction", cmap='viridis')
-        st.pyplot(fig2)
-        plt.close(fig2)
+    # Run AI prediction
+    if model is not None:
+        # Normalize depth for model input (same as training)
+        depth_normalized = depth_map / MAX_DEPTH
+        input_tensor = torch.from_numpy(depth_normalized).float()
+        input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # (1, 1, 64, 64)
 
-        metrics_ai = compute_uniformity_metrics(ai_output)
-        st.caption(f"Mean: {metrics_ai['mean']:.4f} | Uniformity: {metrics_ai['uniformity']:.2%}")
+        with torch.no_grad():
+            ai_output_tensor = model(input_tensor)
+
+        ai_output = ai_output_tensor.squeeze().numpy()
     else:
-        st.info("Model not available. Train the model to see AI predictions.")
+        ai_output = None
 
-with col3:
-    st.markdown("**Physics Ground Truth**")
-    fig3 = create_heatmap_figure(physics_output, "Physics Truth", cmap='viridis')
-    st.pyplot(fig3)
-    plt.close(fig3)
+    # --- VISUALIZATION ---
+    st.subheader("Design Visualization")
 
-    metrics_physics = compute_uniformity_metrics(physics_output)
-    st.caption(f"Mean: {metrics_physics['mean']:.4f} | Uniformity: {metrics_physics['uniformity']:.2%}")
+    col1, col2, col3 = st.columns(3)
 
-# --- COMPARISON METRICS ---
-if ai_output is not None:
-    st.divider()
-    st.subheader("Model Accuracy")
+    with col1:
+        st.markdown("**1. Etch Depth Profile**")
+        fig1 = create_plotly_heatmap(
+            depth_map,
+            "Etch Depth (nm)",
+            colorscale='Plasma',
+            zmin=DEPTH_MIN,
+            zmax=DEPTH_MAX,
+            colorbar_title="nm"
+        )
+        st.plotly_chart(fig1, use_container_width=True)
 
-    # Compute error
-    mse = np.mean((ai_output - physics_output) ** 2)
-    mae = np.mean(np.abs(ai_output - physics_output))
-    max_error = np.max(np.abs(ai_output - physics_output))
+        # Depth stats
+        st.caption(f"Min: {depth_map.min():.0f} nm | Max: {depth_map.max():.0f} nm | Mean: {depth_map.mean():.0f} nm")
 
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col2:
+        st.markdown("**2. AI Prediction (Model C)**")
+        if ai_output is not None:
+            fig2 = create_plotly_heatmap(
+                ai_output,
+                "Predicted Light Field",
+                colorscale='Viridis',
+                zmin=0,
+                zmax=0.5,
+                colorbar_title="Intensity"
+            )
+            st.plotly_chart(fig2, use_container_width=True)
 
-    with col_m1:
-        st.metric("MSE", f"{mse:.6f}")
-    with col_m2:
-        st.metric("MAE", f"{mae:.6f}")
-    with col_m3:
-        st.metric("Max Error", f"{max_error:.4f}")
-    with col_m4:
-        # Correlation
+            uniformity_ai = compute_uniformity_score(ai_output)
+            st.caption(f"Mean: {ai_output.mean():.4f} | Uniformity: {uniformity_ai:.1f}%")
+        else:
+            st.info("Model not available.")
+
+    with col3:
+        st.markdown("**3. Physics Ground Truth**")
+        fig3 = create_plotly_heatmap(
+            physics_output,
+            "Simulated Light Field",
+            colorscale='Viridis',
+            zmin=0,
+            zmax=0.5,
+            colorbar_title="Intensity"
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+
+        uniformity_physics = compute_uniformity_score(physics_output)
+        st.caption(f"Mean: {physics_output.mean():.4f} | Uniformity: {uniformity_physics:.1f}%")
+
+    # --- MODEL ACCURACY ---
+    if ai_output is not None:
+        st.divider()
+        st.subheader("Model Accuracy")
+
+        mse = np.mean((ai_output - physics_output) ** 2)
+        mae = np.mean(np.abs(ai_output - physics_output))
+        max_error = np.max(np.abs(ai_output - physics_output))
         correlation = np.corrcoef(ai_output.flatten(), physics_output.flatten())[0, 1]
-        st.metric("Correlation", f"{correlation:.4f}")
 
-    # Error heatmap
-    st.markdown("**Prediction Error Map** (AI - Physics)")
-    error_map = ai_output - physics_output
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric("MSE", f"{mse:.6f}")
+        with col_m2:
+            st.metric("MAE", f"{mae:.6f}")
+        with col_m3:
+            st.metric("Max Error", f"{max_error:.4f}")
+        with col_m4:
+            st.metric("Correlation", f"{correlation:.4f}")
 
-    fig_err, ax_err = plt.subplots(figsize=(8, 3))
-    im = ax_err.imshow(error_map, cmap='RdBu_r', vmin=-0.1, vmax=0.1, origin='upper')
-    ax_err.set_title("Error Map (Blue=Under, Red=Over)", fontsize=11)
-    ax_err.set_xlabel("X (Propagation Direction)")
-    ax_err.set_ylabel("Y")
-    plt.colorbar(im, ax=ax_err, fraction=0.02, pad=0.04)
-    plt.tight_layout()
-    st.pyplot(fig_err)
-    plt.close(fig_err)
+        # Error heatmap
+        error_map = ai_output - physics_output
+        fig_err = create_plotly_heatmap(
+            error_map,
+            "Prediction Error (AI - Physics)",
+            colorscale='RdBu_r',
+            zmin=-0.05,
+            zmax=0.05,
+            colorbar_title="Error"
+        )
+        fig_err.update_layout(height=300)
+        st.plotly_chart(fig_err, use_container_width=True)
 
-# --- PHYSICS EXPLANATION ---
-st.divider()
-with st.expander("How the Physics Simulation Works"):
-    st.markdown("""
-    ### Leaky Bucket Energy Transport Model
+    # --- PHYSICS EXPLAINER ---
+    with st.expander("Physics Deep Dive: Kogelnik + Leaky Bucket"):
+        st.markdown("""
+        ### Surface Relief Grating (SRG) Physics
 
-    The simulation models light propagation through a waveguide with extraction gratings:
+        **1. Kogelnik Approximation (Depth → Efficiency)**
 
-    1. **Initialization**: Light enters from the left edge with energy = 1.0 for all rows
+        The diffraction efficiency of an SRG depends on etch depth via:
 
-    2. **Column-by-Column Propagation** (x = 0 to 63):
-       - `Extracted_Light[y, x] = Current_Energy[y] * Efficiency[y, x]`
-       - `Remaining_Energy[y] = (Current_Energy[y] - Extracted_Light[y, x]) * 0.99`
-       - The 0.99 factor represents 1% absorption loss per column
+        $$\\eta(d) = 0.8 \\cdot \\sin^2\\left(\\frac{\\pi \\cdot d}{800}\\right)$$
 
-    3. **Output**: The extracted light field represents what a user would see
+        Where:
+        - $d$ = etch depth in nanometers
+        - Peak efficiency (~80%) at $d \\approx 200$ nm
+        - This creates a **non-linear** response curve
 
-    **Design Challenge**: Create efficiency patterns that extract light uniformly across
-    the entire display, compensating for energy depletion as light travels right.
+        **2. Leaky Bucket Energy Transport**
 
-    **Optimal Strategy**: Increase efficiency from left to right to compensate for depleting energy.
-    """)
+        Light propagates column-by-column from left to right:
+        1. `Extracted[y,x] = Energy[y] * Efficiency[y,x]`
+        2. `Energy[y] = (Energy[y] - Extracted[y,x]) * 0.99`
 
-# --- FOOTER ---
-st.sidebar.divider()
-st.sidebar.caption("P3: Waveguide Uniformity | SimaNova")
+        The 0.99 factor represents 1% absorption loss per column.
+
+        **3. Design Strategy**
+
+        To achieve uniform light output:
+        - Start with **lower efficiency** on the left (shallow etch)
+        - Increase efficiency toward the right (deeper etch)
+        - This compensates for energy depletion
+
+        The **Gradient Correction** slider implements this strategy!
+        """)
+
+
+# =============================================================================
+# TAB 2: AI RESEARCH LAB (DOE)
+# =============================================================================
+with tab2:
+    st.subheader("Design of Experiments: CNN Architecture Comparison")
+
+    doe_df = load_doe_results()
+
+    if doe_df is not None:
+        # --- EXPERIMENT SCOPE ---
+        st.markdown("### 1. Experimental Design")
+
+        col_exp1, col_exp2, col_exp3 = st.columns(3)
+
+        with col_exp1:
+            st.info(
+                "**Model A: Pixel-Wise**\n\n"
+                "Architecture: 2x Conv(1x1)\n\n"
+                "Receptive Field: **1x1**\n\n"
+                "Parameters: 49"
+            )
+
+        with col_exp2:
+            st.info(
+                "**Model B: Standard**\n\n"
+                "Architecture: 3x Conv(3x3)\n\n"
+                "Receptive Field: **7x7**\n\n"
+                "Parameters: 5,089"
+            )
+
+        with col_exp3:
+            st.success(
+                "**Model C: Deep Receptive** ✓\n\n"
+                "Architecture: 5x Conv(3x3)\n\n"
+                "Receptive Field: **11x11**\n\n"
+                "Parameters: 42,049"
+            )
+
+        st.divider()
+
+        # --- LOSS CURVES ---
+        st.markdown("### 2. Training Loss Curves")
+
+        # Create line chart
+        fig_loss = px.line(
+            doe_df,
+            x='Epoch',
+            y='Test_Loss',
+            color='Model_Name',
+            markers=True,
+            log_y=True,
+            title="Test Loss vs Epoch (Log Scale)",
+            labels={'Test_Loss': 'Test Loss (MSE)', 'Model_Name': 'Model'}
+        )
+
+        fig_loss.update_layout(
+            xaxis_title="Epoch",
+            yaxis_title="Test Loss (MSE, log scale)",
+            legend_title="Model",
+            height=400
+        )
+
+        st.plotly_chart(fig_loss, use_container_width=True)
+
+        # --- FINAL METRICS ---
+        st.markdown("### 3. Final Performance Metrics")
+
+        # Get final losses
+        final_results = doe_df.groupby('Model_Name')['Test_Loss'].last().reset_index()
+        final_results = final_results.sort_values('Test_Loss', ascending=False)
+
+        col_r1, col_r2, col_r3 = st.columns(3)
+
+        model_a_loss = doe_df[doe_df['Model_Name'] == 'Model_A_PixelWise']['Test_Loss'].iloc[-1]
+        model_b_loss = doe_df[doe_df['Model_Name'] == 'Model_B_Standard']['Test_Loss'].iloc[-1]
+        model_c_loss = doe_df[doe_df['Model_Name'] == 'Model_C_DeepReceptive']['Test_Loss'].iloc[-1]
+
+        with col_r1:
+            st.metric(
+                "Model A (1x1)",
+                f"{model_a_loss:.6f}",
+                delta=f"{(model_a_loss/model_c_loss):.0f}x worse",
+                delta_color="inverse"
+            )
+
+        with col_r2:
+            st.metric(
+                "Model B (3x3)",
+                f"{model_b_loss:.6f}",
+                delta=f"{(model_b_loss/model_c_loss):.1f}x worse",
+                delta_color="inverse"
+            )
+
+        with col_r3:
+            st.metric(
+                "Model C (Deep) ✓",
+                f"{model_c_loss:.6f}",
+                delta="Best",
+                delta_color="normal"
+            )
+
+        # Bar chart comparison
+        fig_bar = px.bar(
+            final_results,
+            x='Model_Name',
+            y='Test_Loss',
+            color='Model_Name',
+            title="Final Test Loss Comparison",
+            log_y=True,
+            text_auto='.6f'
+        )
+        fig_bar.update_layout(showlegend=False, height=350)
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+        st.divider()
+
+        # --- KEY INSIGHTS ---
+        st.markdown("### 4. Key Insights")
+
+        st.error(
+            "**Why Model A Fails (1x1 Kernels)**\n\n"
+            "Model A uses 1x1 convolutions, meaning each output pixel only sees "
+            "the corresponding input pixel. It **cannot** capture the physics because:\n\n"
+            "- Light propagation is **spatially dependent** (left-to-right energy flow)\n"
+            "- Efficiency at position (x) affects ALL positions to its right\n"
+            "- A 1x1 receptive field sees no neighbors, treating each pixel independently\n\n"
+            "**Result:** 90x worse than Model C"
+        )
+
+        st.success(
+            "**Why Model C Wins (5-Layer, 11x11 Receptive Field)**\n\n"
+            "Model C's larger receptive field allows it to:\n\n"
+            "- See ~11 columns of the input simultaneously\n"
+            "- Learn the cumulative energy depletion pattern\n"
+            "- Capture long-range dependencies in the physics\n\n"
+            "**Result:** 6x better than Model B, proving that **spatial context matters** "
+            "for physics-based problems."
+        )
+
+        # --- RAW DATA ---
+        with st.expander("View Raw DOE Data"):
+            st.dataframe(doe_df, use_container_width=True)
+
+    else:
+        st.warning(
+            "**DOE results not found!** The file `data/p3_doe_results.csv` is missing. "
+            "Run `python p3_doe_train.py` to generate the results."
+        )
