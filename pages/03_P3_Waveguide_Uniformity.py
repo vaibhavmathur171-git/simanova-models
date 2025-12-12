@@ -43,7 +43,8 @@ DEPTH_MAX = 350.0  # nm
 
 # Model Paths
 MODEL_C_PATH = "models/p3_model_C.pth"
-DOE_RESULTS_PATH = "data/p3_doe_results.csv"
+# Handle case sensitivity (Windows vs Linux)
+DOE_RESULTS_PATH = "Data/p3_doe_results.csv" if os.path.exists("Data/p3_doe_results.csv") else "data/p3_doe_results.csv"
 
 
 # =============================================================================
