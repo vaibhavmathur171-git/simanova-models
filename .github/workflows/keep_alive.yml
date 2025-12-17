@@ -1,0 +1,33 @@
+name: Keep Streamlit App Alive
+
+# Heartbeat Agent: Pings the Streamlit app every 2 days to prevent Community Cloud "sleep" mode
+# Streamlit apps typically sleep after 3-7 days of inactivity, so a 48-hour ping interval keeps them awake
+
+on:
+  schedule:
+    # Run at 00:00 UTC every 2 days (CRON format: minute hour day month weekday)
+    - cron: '0 0 */2 * *'
+  workflow_dispatch:  # Allow manual triggering from GitHub Actions UI
+
+jobs:
+  ping:
+    name: Ping Streamlit App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send heartbeat to Streamlit app
+        run: |
+          echo "Pinging Streamlit app at https://p1-mono-wg-doe.streamlit.app..."
+
+          # Send GET request and capture HTTP status code
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://p1-mono-wg-doe.streamlit.app)
+
+          echo "Response status code: $HTTP_STATUS"
+
+          # Verify successful response (200 OK)
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✓ App is awake and responding normally"
+          else
+            echo "⚠ Warning: Received status code $HTTP_STATUS (expected 200)"
+            exit 1
+          fi
