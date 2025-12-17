@@ -17,7 +17,14 @@
       "Bash(git push:*)",
       "Bash(dir:*)",
       "Bash(git commit:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(move pages01_P1_WG_DOE.py _staging )",
+      "Bash(move pages02_P2_Rainbow_Surrogate.py _staging )",
+      "Bash(move pages03_P3_Waveguide_Uniformity.py _staging )",
+      "Bash(move pages04_P4_Thermal_PINN.py _staging)",
+      "Bash(mv:*)"
     ]
   }
 }
