@@ -5,6 +5,10 @@ System Architect Dashboard
 """
 import streamlit as st
 from pathlib import Path
+import os
+
+# Get the directory where this script is located
+SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 
 # =============================================================================
 # PAGE CONFIG
@@ -221,11 +225,10 @@ st.markdown("""
 st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 
 # Hero image - Neural sphere visualization
-hero_image_path = Path("assets/hero_neural_sphere.png")
-if hero_image_path.exists():
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col2:
-        st.image(str(hero_image_path), use_container_width=True)
+hero_image_path = SCRIPT_DIR / "assets" / "hero_neural_sphere.png"
+col1, col2, col3 = st.columns([1, 3, 1])
+with col2:
+    st.image(str(hero_image_path), use_container_width=True)
 
 st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
@@ -255,17 +258,16 @@ st.markdown("<div class='custom-divider'></div>", unsafe_allow_html=True)
 # =============================================================================
 st.markdown("<p class='section-header'>The Architecture</p>", unsafe_allow_html=True)
 
-architecture_image_path = Path("assets/architecture_pinn.png")
-if architecture_image_path.exists():
-    col1, col2, col3 = st.columns([1, 4, 1])
-    with col2:
-        st.image(str(architecture_image_path), use_container_width=True)
-        st.markdown("""
-        <p style="text-align: center; color: #667eea; font-size: 0.85rem; margin-top: 1rem;">
-            Physical sensors feed observed data into differentiable neural networks, constrained by physics loss functions,
-            to predict states for digital twin simulations.
-        </p>
-        """, unsafe_allow_html=True)
+architecture_image_path = SCRIPT_DIR / "assets" / "architecture_pinn.png"
+col1, col2, col3 = st.columns([1, 4, 1])
+with col2:
+    st.image(str(architecture_image_path), use_container_width=True)
+    st.markdown("""
+    <p style="text-align: center; color: #667eea; font-size: 0.85rem; margin-top: 1rem;">
+        Physical sensors feed observed data into differentiable neural networks, constrained by physics loss functions,
+        to predict states for digital twin simulations.
+    </p>
+    """, unsafe_allow_html=True)
 
 st.markdown("<div class='custom-divider'></div>", unsafe_allow_html=True)
 
