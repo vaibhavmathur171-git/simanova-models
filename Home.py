@@ -229,7 +229,7 @@ if hero_image_path.exists():
 
 st.markdown("""
 <h1 class="hero-title">10 Days, 10 Engines</h1>
-<p class="hero-subtitle">Architecting the transition from hand-derived laws to Learned Manifolds</p>
+<p class="hero-subtitle">Architecting the transition from hand-derived physics to Learned Manifolds in hardware design</p>
 """, unsafe_allow_html=True)
 
 # =============================================================================
@@ -238,9 +238,10 @@ st.markdown("""
 st.markdown("""
 <div class="manifesto-box">
     <p class="manifesto-text">
-        This sprint is a proof-of-concept for the <strong>Universal Approximation Theorem</strong> applied to optics and hardware design.
-        Each engine replaces months of physics derivation with a neural surrogate trained on simulation ground truth.
-        The goal: demonstrate that learned manifolds can match—and eventually surpass—hand-crafted analytical models.
+        This sprint is a proof-of-concept for the <strong>Universal Approximation Theorem</strong> applied to physics and hardware design.
+        Each engine replaces months of physics derivation with a neural surrogate trained on simulation ground truth—applicable across
+        <strong>AR/VR, Optics, MEMS, CFD, Aerodynamics</strong>, and beyond.
+        The goal: demonstrate that learned manifolds can match—and eventually surpass—hand-crafted analytical models in any engineering domain.
     </p>
 </div>
 """, unsafe_allow_html=True)
