@@ -228,8 +228,8 @@ if hero_image_path.exists():
         st.image(str(hero_image_path), use_container_width=True)
 
 st.markdown("""
-<h1 class="hero-title">10 Days, 10 Engines</h1>
-<p class="hero-subtitle">Architecting the transition from hand-derived physics to Learned Manifolds in hardware design</p>
+<h1 class="hero-title">10 Days. 10 Physics-AI Engines.</h1>
+<p class="hero-subtitle">Neural Surrogates for Hardware Design | Differentiable Physics at Scale</p>
 """, unsafe_allow_html=True)
 
 # =============================================================================
@@ -238,10 +238,10 @@ st.markdown("""
 st.markdown("""
 <div class="manifesto-box">
     <p class="manifesto-text">
-        This sprint is a proof-of-concept for the <strong>Universal Approximation Theorem</strong> applied to physics and hardware design.
-        Each engine replaces months of physics derivation with a neural surrogate trained on simulation ground truth—applicable across
-        <strong>AR/VR, Optics, MEMS, CFD, Aerodynamics</strong>, and beyond.
-        The goal: demonstrate that learned manifolds can match—and eventually surpass—hand-crafted analytical models in any engineering domain.
+        A proof-of-concept applying the <strong>Universal Approximation Theorem</strong> to real-world physics simulation.
+        Each engine is a <strong>differentiable neural surrogate</strong>—trained on high-fidelity simulation data—capable of
+        replacing months of analytical derivation across <strong>AR/VR · Photonics · MEMS · CFD · Aerodynamics</strong>.
+        The thesis: learned representations will surpass hand-crafted physics models in speed, accuracy, and generalization.
     </p>
 </div>
 """, unsafe_allow_html=True)
