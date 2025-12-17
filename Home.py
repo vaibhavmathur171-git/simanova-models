@@ -218,14 +218,16 @@ st.markdown("""
 # =============================================================================
 # HERO SECTION
 # =============================================================================
-st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 
-# Hero image placeholder
-hero_image_path = Path("assets/hero_image.png")
+# Hero image - Neural sphere visualization
+hero_image_path = Path("assets/hero_neural_sphere.png")
 if hero_image_path.exists():
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         st.image(str(hero_image_path), use_container_width=True)
+
+st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
 st.markdown("""
 <h1 class="hero-title">10 Days. 10 Physics-AI Engines.</h1>
@@ -245,6 +247,25 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+st.markdown("<div class='custom-divider'></div>", unsafe_allow_html=True)
+
+# =============================================================================
+# THE ARCHITECTURE
+# =============================================================================
+st.markdown("<p class='section-header'>The Architecture</p>", unsafe_allow_html=True)
+
+architecture_image_path = Path("assets/architecture_pinn.png")
+if architecture_image_path.exists():
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col2:
+        st.image(str(architecture_image_path), use_container_width=True)
+        st.markdown("""
+        <p style="text-align: center; color: #667eea; font-size: 0.85rem; margin-top: 1rem;">
+            Physical sensors feed observed data into differentiable neural networks, constrained by physics loss functions,
+            to predict states for digital twin simulations.
+        </p>
+        """, unsafe_allow_html=True)
 
 st.markdown("<div class='custom-divider'></div>", unsafe_allow_html=True)
 
