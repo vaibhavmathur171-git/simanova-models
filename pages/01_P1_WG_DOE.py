@@ -820,62 +820,48 @@ with tab3:
                 st.markdown('<p class="subsection-header">Training Dynamics: MAE vs. Epochs</p>', unsafe_allow_html=True)
 
                 try:
-                    # Use pivot_table with aggfunc='mean' to handle duplicates
-                    heatmap_epochs_pivot = pd.pivot_table(
-                        df,
-                        values=mae_col,
+                    # Robust pivot with aggregation and fill
+                    heatmap_epochs_pivot = df.pivot_table(
                         index='n_layers',
                         columns='n_epochs',
+                        values=mae_col,
                         aggfunc='mean'
-                    )
+                    ).fillna(0)
 
-                    # Ensure complete grid
-                    all_layers = sorted(df['n_layers'].unique())
-                    all_epochs = sorted(df['n_epochs'].unique())
-                    heatmap_epochs_pivot = heatmap_epochs_pivot.reindex(index=all_layers, columns=all_epochs)
-                    heatmap_epochs_pivot = heatmap_epochs_pivot.fillna(heatmap_epochs_pivot.mean().mean())
+                    # Get values as numpy array
+                    z_epochs_data = heatmap_epochs_pivot.values
+                    x_epoch_labels = [f"{int(c)}e" for c in heatmap_epochs_pivot.columns]
+                    y_epoch_labels = [f"{int(r)}L" for r in heatmap_epochs_pivot.index]
 
-                    # Sort axes
-                    heatmap_epochs_pivot = heatmap_epochs_pivot.sort_index(ascending=True)
-                    heatmap_epochs_pivot = heatmap_epochs_pivot[sorted(heatmap_epochs_pivot.columns)]
-
-                    z_epochs = heatmap_epochs_pivot.values
+                    # Create heatmap with Viridis colorscale
                     fig_epochs = go.Figure(data=go.Heatmap(
-                        z=z_epochs,
-                        x=[f"{int(e)} epochs" for e in heatmap_epochs_pivot.columns],
-                        y=[f"{int(l)} layers" for l in heatmap_epochs_pivot.index],
-                        colorscale=[
-                            [0.0, '#2ecc71'],
-                            [0.3, '#667eea'],
-                            [0.6, '#f093fb'],
-                            [1.0, '#e74c3c']
-                        ],
+                        z=z_epochs_data,
+                        x=x_epoch_labels,
+                        y=y_epoch_labels,
+                        colorscale='Viridis',
+                        reversescale=True,
                         colorbar=dict(
-                            title=dict(text="MAE (nm)", font=dict(color='#a0aec0')),
-                            tickfont=dict(color='#a0aec0')
+                            title="MAE (nm)",
+                            tickfont=dict(color='#E0E0E0')
                         ),
-                        hovertemplate="Layers: %{y}<br>Epochs: %{x}<br>MAE: %{z:.3f} nm<extra></extra>",
-                        zmin=float(np.nanmin(z_epochs)) if z_epochs.size > 0 else 0,
-                        zmax=float(np.nanmax(z_epochs)) if z_epochs.size > 0 else 1
+                        hovertemplate="Depth: %{y}<br>Epochs: %{x}<br>MAE: %{z:.2f} nm<extra></extra>"
                     ))
 
                     fig_epochs.update_layout(
                         template='plotly_dark',
                         paper_bgcolor='#0E1117',
                         plot_bgcolor='#0E1117',
-                        font=dict(color='#a0aec0'),
+                        font=dict(color='#E0E0E0'),
                         xaxis=dict(
                             title='Training Epochs',
-                            tickfont=dict(color='#e2e8f0'),
-                            type='category'
+                            tickfont=dict(color='#E0E0E0')
                         ),
                         yaxis=dict(
                             title='Network Depth',
-                            tickfont=dict(color='#e2e8f0'),
-                            type='category'
+                            tickfont=dict(color='#E0E0E0')
                         ),
                         height=350,
-                        margin=dict(l=80, r=40, t=40, b=60)
+                        margin=dict(l=80, r=60, t=40, b=60)
                     )
 
                     st.plotly_chart(fig_epochs, use_container_width=True)
