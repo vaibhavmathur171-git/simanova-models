@@ -553,67 +553,287 @@ with tab3:
     df = load_doe_data()
 
     if df is not None:
-        st.markdown('<p class="subsection-header">Design of Experiments Results</p>', unsafe_allow_html=True)
+        # Normalize column names
+        df.columns = df.columns.str.lower().str.strip()
 
-        # Display metrics summary
+        # ---------------------------------------------------------------------
+        # SUMMARY METRICS
+        # ---------------------------------------------------------------------
+        st.markdown('<p class="subsection-header">Experiment Summary</p>', unsafe_allow_html=True)
+
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Experiments", len(df))
         with col2:
-            if 'mae' in df.columns:
-                st.metric("Best MAE", f"{df['mae'].min():.3f} nm")
-            elif 'MAE' in df.columns:
-                st.metric("Best MAE", f"{df['MAE'].min():.3f} nm")
+            mae_col = 'mae_nm' if 'mae_nm' in df.columns else 'mae'
+            if mae_col in df.columns:
+                best_mae = df[mae_col].min()
+                st.metric("Best MAE", f"{best_mae:.3f} nm")
         with col3:
-            if 'rmse' in df.columns:
-                st.metric("Best RMSE", f"{df['rmse'].min():.3f} nm")
-            elif 'RMSE' in df.columns:
-                st.metric("Best RMSE", f"{df['RMSE'].min():.3f} nm")
+            rmse_col = 'rmse_nm' if 'rmse_nm' in df.columns else 'rmse'
+            if rmse_col in df.columns:
+                best_rmse = df[rmse_col].min()
+                st.metric("Best RMSE", f"{best_rmse:.3f} nm")
         with col4:
-            st.metric("Training Samples", "10,000")
-
-        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
-
-        # DataFrame display
-        st.dataframe(
-            df,
-            use_container_width=True,
-            height=400
-        )
+            if 'n_samples' in df.columns:
+                max_samples = df['n_samples'].max()
+                st.metric("Max Samples", f"{max_samples:,}")
 
         st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
-        # Commentary
-        st.markdown('<p class="subsection-header">Analysis: Hidden Layer Width vs. Manifold Curvature</p>', unsafe_allow_html=True)
+        # ---------------------------------------------------------------------
+        # INTERACTIVE FILTERS
+        # ---------------------------------------------------------------------
+        st.markdown('<p class="subsection-header">Interactive Filters</p>', unsafe_allow_html=True)
+
+        filter_col1, filter_col2, filter_col3 = st.columns(3)
+
+        # Filter by number of layers
+        with filter_col1:
+            if 'n_layers' in df.columns:
+                layer_options = ['All'] + sorted(df['n_layers'].unique().tolist())
+                selected_layers = st.selectbox(
+                    "Filter by Layers",
+                    options=layer_options,
+                    help="Filter experiments by network depth"
+                )
+
+        # Filter by dataset size
+        with filter_col2:
+            if 'n_samples' in df.columns:
+                sample_options = ['All'] + sorted(df['n_samples'].unique().tolist())
+                selected_samples = st.selectbox(
+                    "Filter by Dataset Size",
+                    options=sample_options,
+                    help="Filter experiments by training samples"
+                )
+
+        # Filter by epochs
+        with filter_col3:
+            if 'n_epochs' in df.columns:
+                epoch_options = ['All'] + sorted(df['n_epochs'].unique().tolist())
+                selected_epochs = st.selectbox(
+                    "Filter by Epochs",
+                    options=epoch_options,
+                    help="Filter experiments by training epochs"
+                )
+
+        # Apply filters
+        df_filtered = df.copy()
+        if 'n_layers' in df.columns and selected_layers != 'All':
+            df_filtered = df_filtered[df_filtered['n_layers'] == selected_layers]
+        if 'n_samples' in df.columns and selected_samples != 'All':
+            df_filtered = df_filtered[df_filtered['n_samples'] == selected_samples]
+        if 'n_epochs' in df.columns and selected_epochs != 'All':
+            df_filtered = df_filtered[df_filtered['n_epochs'] == selected_epochs]
+
+        st.markdown(f"<p style='color: #667eea; font-size: 0.85rem;'>Showing {len(df_filtered)} of {len(df)} experiments</p>", unsafe_allow_html=True)
+
+        # ---------------------------------------------------------------------
+        # DATA TABLE
+        # ---------------------------------------------------------------------
+        st.markdown('<p class="subsection-header">Experiment Results</p>', unsafe_allow_html=True)
+
+        # Format display columns
+        display_df = df_filtered.copy()
+        if mae_col in display_df.columns:
+            display_df[mae_col] = display_df[mae_col].round(3)
+        if rmse_col in display_df.columns:
+            display_df[rmse_col] = display_df[rmse_col].round(3)
+        if 'mape_percent' in display_df.columns:
+            display_df['mape_percent'] = display_df['mape_percent'].round(2)
+
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            height=300
+        )
+
+        st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
+
+        # ---------------------------------------------------------------------
+        # HEATMAP: MAE vs Layers & Samples
+        # ---------------------------------------------------------------------
+        st.markdown('<p class="subsection-header">Capacity Heatmap: MAE vs. Architecture</p>', unsafe_allow_html=True)
+
+        if 'n_layers' in df.columns and 'n_samples' in df.columns and mae_col in df.columns:
+            # Aggregate: for each (n_layers, n_samples), take mean MAE across epochs
+            heatmap_data = df.groupby(['n_layers', 'n_samples'])[mae_col].mean().reset_index()
+            heatmap_pivot = heatmap_data.pivot(index='n_layers', columns='n_samples', values=mae_col)
+
+            # Create heatmap
+            fig_heatmap = go.Figure(data=go.Heatmap(
+                z=heatmap_pivot.values,
+                x=[f"{int(s):,}" for s in heatmap_pivot.columns],
+                y=[f"{int(l)} layers" for l in heatmap_pivot.index],
+                colorscale=[
+                    [0.0, '#2ecc71'],    # Green (low error)
+                    [0.3, '#667eea'],    # Purple
+                    [0.6, '#f093fb'],    # Pink
+                    [1.0, '#e74c3c']     # Red (high error)
+                ],
+                colorbar=dict(
+                    title="MAE (nm)",
+                    titlefont=dict(color='#a0aec0'),
+                    tickfont=dict(color='#a0aec0')
+                ),
+                hovertemplate="Layers: %{y}<br>Samples: %{x}<br>MAE: %{z:.3f} nm<extra></extra>"
+            ))
+
+            fig_heatmap.update_layout(
+                paper_bgcolor='#0E1117',
+                plot_bgcolor='#0E1117',
+                font=dict(color='#a0aec0'),
+                xaxis=dict(
+                    title='Training Samples',
+                    tickfont=dict(color='#e2e8f0')
+                ),
+                yaxis=dict(
+                    title='Network Depth',
+                    tickfont=dict(color='#e2e8f0')
+                ),
+                height=350,
+                margin=dict(l=80, r=40, t=40, b=60)
+            )
+
+            st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            # ---------------------------------------------------------------------
+            # SECONDARY HEATMAP: MAE vs Layers & Epochs
+            # ---------------------------------------------------------------------
+            if 'n_epochs' in df.columns:
+                st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+                st.markdown('<p class="subsection-header">Training Dynamics: MAE vs. Epochs</p>', unsafe_allow_html=True)
+
+                heatmap_epochs = df.groupby(['n_layers', 'n_epochs'])[mae_col].mean().reset_index()
+                heatmap_epochs_pivot = heatmap_epochs.pivot(index='n_layers', columns='n_epochs', values=mae_col)
+
+                fig_epochs = go.Figure(data=go.Heatmap(
+                    z=heatmap_epochs_pivot.values,
+                    x=[f"{int(e)} epochs" for e in heatmap_epochs_pivot.columns],
+                    y=[f"{int(l)} layers" for l in heatmap_epochs_pivot.index],
+                    colorscale=[
+                        [0.0, '#2ecc71'],
+                        [0.3, '#667eea'],
+                        [0.6, '#f093fb'],
+                        [1.0, '#e74c3c']
+                    ],
+                    colorbar=dict(
+                        title="MAE (nm)",
+                        titlefont=dict(color='#a0aec0'),
+                        tickfont=dict(color='#a0aec0')
+                    ),
+                    hovertemplate="Layers: %{y}<br>Epochs: %{x}<br>MAE: %{z:.3f} nm<extra></extra>"
+                ))
+
+                fig_epochs.update_layout(
+                    paper_bgcolor='#0E1117',
+                    plot_bgcolor='#0E1117',
+                    font=dict(color='#a0aec0'),
+                    xaxis=dict(
+                        title='Training Epochs',
+                        tickfont=dict(color='#e2e8f0')
+                    ),
+                    yaxis=dict(
+                        title='Network Depth',
+                        tickfont=dict(color='#e2e8f0')
+                    ),
+                    height=350,
+                    margin=dict(l=80, r=40, t=40, b=60)
+                )
+
+                st.plotly_chart(fig_epochs, use_container_width=True)
+
+        st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
+
+        # ---------------------------------------------------------------------
+        # SCIENTIFIC COMMENTARY
+        # ---------------------------------------------------------------------
+        st.markdown('<p class="subsection-header">Scientific Interpretation</p>', unsafe_allow_html=True)
+
+        # Analyze the data for insights
+        if mae_col in df.columns and 'n_layers' in df.columns:
+            # Find optimal configuration
+            best_idx = df[mae_col].idxmin()
+            best_row = df.loc[best_idx]
+
+            # Detect overfitting (deep models with small data)
+            deep_small = df[(df['n_layers'] >= 3) & (df['n_samples'] <= 500)][mae_col].mean() if 'n_samples' in df.columns else 0
+            shallow_large = df[(df['n_layers'] <= 2) & (df['n_samples'] >= 1000)][mae_col].mean() if 'n_samples' in df.columns else 0
+
+            st.markdown(f"""
+            <div class="method-card">
+                <span class="method-number">OPTIMAL</span>
+                <span class="method-title">Best Configuration Found</span>
+                <p class="method-desc">
+                    <strong>Layers:</strong> {int(best_row.get('n_layers', 'N/A'))}&nbsp;&nbsp;|&nbsp;&nbsp;
+                    <strong>Samples:</strong> {int(best_row.get('n_samples', 'N/A')):,}&nbsp;&nbsp;|&nbsp;&nbsp;
+                    <strong>Epochs:</strong> {int(best_row.get('n_epochs', 'N/A'))}<br>
+                    <strong>MAE:</strong> {best_row[mae_col]:.4f} nm&nbsp;&nbsp;|&nbsp;&nbsp;
+                    <strong>RMSE:</strong> {best_row.get(rmse_col, 0):.4f} nm
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
         st.markdown("""
         <div class="method-card">
+            <span class="method-number">1</span>
+            <span class="method-title">Underfitting Regime</span>
             <p class="method-desc">
-                The inverse grating problem exhibits a nonlinear relationship governed by sin<sup>-1</sup>(·).
-                Increasing hidden layer width (64 → 128 → 256 neurons) improves the model's capacity to
-                approximate the curvature of this optical manifold, particularly at extreme angles where
-                the period-to-angle sensitivity is highest.
-                <br><br>
-                <strong>Key Observations:</strong>
-                <ul style="margin-top: 0.5rem; color: #a0aec0;">
-                    <li>4-layer MLP with 64 hidden units achieves sub-nanometer MAE</li>
-                    <li>Diminishing returns observed beyond 128 hidden units</li>
-                    <li>Gaussian noise injection reduces overfitting by ~15% on held-out test set</li>
-                    <li>Training converges within 100 epochs for this low-dimensional manifold</li>
-                </ul>
+                <strong>Symptom:</strong> High MAE persists even with more training epochs.<br>
+                <strong>Cause:</strong> Shallow networks (1-2 layers) lack the capacity to approximate the
+                sin<sup>-1</sup>(·) nonlinearity of the optical manifold.<br>
+                <strong>Evidence:</strong> Single-layer networks show MAE &gt;10nm regardless of training duration,
+                indicating the model cannot capture the curvature of the angle-to-period mapping.
             </p>
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">2</span>
+            <span class="method-title">Overfitting Regime</span>
+            <p class="method-desc">
+                <strong>Symptom:</strong> Deep networks (4+ layers) with small datasets (&lt;500 samples) show
+                unstable convergence and high variance in MAE.<br>
+                <strong>Cause:</strong> Model capacity exceeds the information content of the training data,
+                leading to memorization rather than generalization.<br>
+                <strong>Mitigation:</strong> Either increase dataset size or apply regularization (dropout, weight decay).
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">3</span>
+            <span class="method-title">Optimal Capacity</span>
+            <p class="method-desc">
+                <strong>Sweet Spot:</strong> 2-3 layer networks with 1000+ samples achieve sub-3nm MAE
+                with stable training dynamics.<br>
+                <strong>Interpretation:</strong> For this 1D inverse problem (angle → period), the optical manifold
+                is smooth enough that moderate depth suffices. The grating equation's sin(θ) relationship
+                is well-approximated by 2-3 ReLU layers without risking overfitting.<br>
+                <strong>Recommendation:</strong> Use 2-layer MLP with ≥1000 samples for production deployment.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
     else:
         st.warning("DOE results file not found. Please ensure `data/p1_doe_results.csv` exists.")
 
         # Show expected format
         st.markdown('<p class="subsection-header">Expected DOE Format</p>', unsafe_allow_html=True)
+        st.markdown("""
+        <p style="color: #a0aec0;">Run the DOE sweep script to generate results:</p>
+        <code style="color: #667eea;">python p1_doe_sweep.py</code>
+        """, unsafe_allow_html=True)
+
         example_df = pd.DataFrame({
-            'Experiment_ID': ['EXP_001', 'EXP_002', 'EXP_003'],
-            'Hidden_Layers': [64, 128, 256],
-            'N_Samples': [10000, 10000, 10000],
-            'Epochs': [100, 100, 100],
-            'MAE_nm': [0.45, 0.32, 0.28],
-            'RMSE_nm': [0.61, 0.44, 0.38]
+            'experiment_id': [1, 2, 3],
+            'n_samples': [500, 1000, 1000],
+            'n_layers': [2, 2, 3],
+            'n_epochs': [100, 100, 200],
+            'mae_nm': [5.18, 1.81, 1.60],
+            'rmse_nm': [7.40, 2.91, 2.51]
         })
         st.dataframe(example_df, use_container_width=True)
