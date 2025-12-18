@@ -650,9 +650,11 @@ with tab2:
         textfont=dict(color='#00FFFF', size=11)
     ))
 
-    fig.update_layout(**get_plotly_layout(height=450))
-    fig.update_xaxis(title='Diffraction Angle (°)')
-    fig.update_yaxis(title='Grating Period Λ (nm)')
+    fig.update_layout(
+        **get_plotly_layout(height=450),
+        xaxis_title='Diffraction Angle (deg)',
+        yaxis_title='Grating Period (nm)'
+    )
 
     st.plotly_chart(fig, use_container_width=True, key=f"manifold_{target_angle}_{wavelength}")
 
@@ -736,9 +738,13 @@ with tab3:
                 marker=dict(size=10, color='#667eea')
             ))
 
-            fig_scaling.update_layout(**get_plotly_layout("Dataset Scaling Law", height=350))
-            fig_scaling.update_xaxis(title='Training Samples', type='log')
-            fig_scaling.update_yaxis(title='Mean Absolute Error (nm)', type='log')
+            fig_scaling.update_layout(
+                **get_plotly_layout("Dataset Scaling Law", height=350),
+                xaxis_title='Training Samples',
+                yaxis_title='Mean Absolute Error (nm)',
+                xaxis_type='log',
+                yaxis_type='log'
+            )
 
             st.plotly_chart(fig_scaling, use_container_width=True)
 
@@ -769,9 +775,11 @@ with tab3:
                     hovertemplate="Depth: %{y}<br>Samples: %{x}<br>MAE: %{z:.3f} nm<extra></extra>"
                 ))
 
-                fig_heatmap.update_layout(**get_plotly_layout("", height=350))
-                fig_heatmap.update_xaxis(title='Training Samples')
-                fig_heatmap.update_yaxis(title='Network Depth')
+                fig_heatmap.update_layout(
+                    **get_plotly_layout("", height=350),
+                    xaxis_title='Training Samples',
+                    yaxis_title='Network Depth'
+                )
 
                 st.plotly_chart(fig_heatmap, use_container_width=True)
 
@@ -798,9 +806,11 @@ with tab3:
                 fillcolor='rgba(240, 147, 251, 0.1)'
             ))
 
-            fig_epochs.update_layout(**get_plotly_layout("Learning Curve", height=350))
-            fig_epochs.update_xaxis(title='Training Epochs')
-            fig_epochs.update_yaxis(title='Mean Absolute Error (nm)')
+            fig_epochs.update_layout(
+                **get_plotly_layout("Learning Curve", height=350),
+                xaxis_title='Training Epochs',
+                yaxis_title='Mean Absolute Error (nm)'
+            )
 
             st.plotly_chart(fig_epochs, use_container_width=True)
 
