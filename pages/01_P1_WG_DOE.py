@@ -657,46 +657,75 @@ with tab3:
         st.markdown('<p class="subsection-header">Capacity Heatmap: MAE vs. Architecture</p>', unsafe_allow_html=True)
 
         if 'n_layers' in df.columns and 'n_samples' in df.columns and mae_col in df.columns:
-            # Aggregate: for each (n_layers, n_samples), take mean MAE across epochs
-            heatmap_data = df.groupby(['n_layers', 'n_samples'])[mae_col].mean().reset_index()
-            heatmap_pivot = heatmap_data.pivot(index='n_layers', columns='n_samples', values=mae_col)
+            try:
+                # Use pivot_table with aggfunc='mean' to handle duplicates automatically
+                heatmap_pivot = pd.pivot_table(
+                    df,
+                    values=mae_col,
+                    index='n_layers',
+                    columns='n_samples',
+                    aggfunc='mean'
+                )
 
-            # Create heatmap
-            fig_heatmap = go.Figure(data=go.Heatmap(
-                z=heatmap_pivot.values,
-                x=[f"{int(s):,}" for s in heatmap_pivot.columns],
-                y=[f"{int(l)} layers" for l in heatmap_pivot.index],
-                colorscale=[
-                    [0.0, '#2ecc71'],    # Green (low error)
-                    [0.3, '#667eea'],    # Purple
-                    [0.6, '#f093fb'],    # Pink
-                    [1.0, '#e74c3c']     # Red (high error)
-                ],
-                colorbar=dict(
-                    title="MAE (nm)",
-                    titlefont=dict(color='#a0aec0'),
-                    tickfont=dict(color='#a0aec0')
-                ),
-                hovertemplate="Layers: %{y}<br>Samples: %{x}<br>MAE: %{z:.3f} nm<extra></extra>"
-            ))
+                # Ensure complete grid by reindexing (handles missing combinations)
+                all_layers = sorted(df['n_layers'].unique())
+                all_samples = sorted(df['n_samples'].unique())
+                heatmap_pivot = heatmap_pivot.reindex(index=all_layers, columns=all_samples)
 
-            fig_heatmap.update_layout(
-                paper_bgcolor='#0E1117',
-                plot_bgcolor='#0E1117',
-                font=dict(color='#a0aec0'),
-                xaxis=dict(
-                    title='Training Samples',
-                    tickfont=dict(color='#e2e8f0')
-                ),
-                yaxis=dict(
-                    title='Network Depth',
-                    tickfont=dict(color='#e2e8f0')
-                ),
-                height=350,
-                margin=dict(l=80, r=40, t=40, b=60)
-            )
+                # Fill any remaining NaN with 0 or interpolate
+                heatmap_pivot = heatmap_pivot.fillna(heatmap_pivot.mean().mean())
 
-            st.plotly_chart(fig_heatmap, use_container_width=True)
+                # Sort axes for proper display
+                heatmap_pivot = heatmap_pivot.sort_index(ascending=True)
+                heatmap_pivot = heatmap_pivot[sorted(heatmap_pivot.columns)]
+
+                # Create heatmap with plotly_dark template
+                fig_heatmap = go.Figure(data=go.Heatmap(
+                    z=heatmap_pivot.values,
+                    x=[f"{int(s):,}" for s in heatmap_pivot.columns],
+                    y=[f"{int(l)} layers" for l in heatmap_pivot.index],
+                    colorscale=[
+                        [0.0, '#2ecc71'],    # Green (low error)
+                        [0.3, '#667eea'],    # Purple
+                        [0.6, '#f093fb'],    # Pink
+                        [1.0, '#e74c3c']     # Red (high error)
+                    ],
+                    colorbar=dict(
+                        title="MAE (nm)",
+                        titlefont=dict(color='#a0aec0'),
+                        tickfont=dict(color='#a0aec0')
+                    ),
+                    hovertemplate="Layers: %{y}<br>Samples: %{x}<br>MAE: %{z:.3f} nm<extra></extra>",
+                    zmin=heatmap_pivot.values.min(),
+                    zmax=heatmap_pivot.values.max()
+                ))
+
+                fig_heatmap.update_layout(
+                    template='plotly_dark',
+                    paper_bgcolor='#0E1117',
+                    plot_bgcolor='#0E1117',
+                    font=dict(color='#a0aec0'),
+                    xaxis=dict(
+                        title='Training Samples',
+                        tickfont=dict(color='#e2e8f0'),
+                        type='category'
+                    ),
+                    yaxis=dict(
+                        title='Network Depth',
+                        tickfont=dict(color='#e2e8f0'),
+                        type='category'
+                    ),
+                    height=350,
+                    margin=dict(l=80, r=40, t=40, b=60)
+                )
+
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Error generating heatmap: {str(e)}")
+                st.info("Displaying raw aggregated data instead:")
+                agg_data = df.groupby(['n_layers', 'n_samples'])[mae_col].mean().reset_index()
+                st.dataframe(agg_data, use_container_width=True)
 
             # ---------------------------------------------------------------------
             # SECONDARY HEATMAP: MAE vs Layers & Epochs
@@ -705,44 +734,69 @@ with tab3:
                 st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
                 st.markdown('<p class="subsection-header">Training Dynamics: MAE vs. Epochs</p>', unsafe_allow_html=True)
 
-                heatmap_epochs = df.groupby(['n_layers', 'n_epochs'])[mae_col].mean().reset_index()
-                heatmap_epochs_pivot = heatmap_epochs.pivot(index='n_layers', columns='n_epochs', values=mae_col)
+                try:
+                    # Use pivot_table with aggfunc='mean' to handle duplicates
+                    heatmap_epochs_pivot = pd.pivot_table(
+                        df,
+                        values=mae_col,
+                        index='n_layers',
+                        columns='n_epochs',
+                        aggfunc='mean'
+                    )
 
-                fig_epochs = go.Figure(data=go.Heatmap(
-                    z=heatmap_epochs_pivot.values,
-                    x=[f"{int(e)} epochs" for e in heatmap_epochs_pivot.columns],
-                    y=[f"{int(l)} layers" for l in heatmap_epochs_pivot.index],
-                    colorscale=[
-                        [0.0, '#2ecc71'],
-                        [0.3, '#667eea'],
-                        [0.6, '#f093fb'],
-                        [1.0, '#e74c3c']
-                    ],
-                    colorbar=dict(
-                        title="MAE (nm)",
-                        titlefont=dict(color='#a0aec0'),
-                        tickfont=dict(color='#a0aec0')
-                    ),
-                    hovertemplate="Layers: %{y}<br>Epochs: %{x}<br>MAE: %{z:.3f} nm<extra></extra>"
-                ))
+                    # Ensure complete grid
+                    all_layers = sorted(df['n_layers'].unique())
+                    all_epochs = sorted(df['n_epochs'].unique())
+                    heatmap_epochs_pivot = heatmap_epochs_pivot.reindex(index=all_layers, columns=all_epochs)
+                    heatmap_epochs_pivot = heatmap_epochs_pivot.fillna(heatmap_epochs_pivot.mean().mean())
 
-                fig_epochs.update_layout(
-                    paper_bgcolor='#0E1117',
-                    plot_bgcolor='#0E1117',
-                    font=dict(color='#a0aec0'),
-                    xaxis=dict(
-                        title='Training Epochs',
-                        tickfont=dict(color='#e2e8f0')
-                    ),
-                    yaxis=dict(
-                        title='Network Depth',
-                        tickfont=dict(color='#e2e8f0')
-                    ),
-                    height=350,
-                    margin=dict(l=80, r=40, t=40, b=60)
-                )
+                    # Sort axes
+                    heatmap_epochs_pivot = heatmap_epochs_pivot.sort_index(ascending=True)
+                    heatmap_epochs_pivot = heatmap_epochs_pivot[sorted(heatmap_epochs_pivot.columns)]
 
-                st.plotly_chart(fig_epochs, use_container_width=True)
+                    fig_epochs = go.Figure(data=go.Heatmap(
+                        z=heatmap_epochs_pivot.values,
+                        x=[f"{int(e)} epochs" for e in heatmap_epochs_pivot.columns],
+                        y=[f"{int(l)} layers" for l in heatmap_epochs_pivot.index],
+                        colorscale=[
+                            [0.0, '#2ecc71'],
+                            [0.3, '#667eea'],
+                            [0.6, '#f093fb'],
+                            [1.0, '#e74c3c']
+                        ],
+                        colorbar=dict(
+                            title="MAE (nm)",
+                            titlefont=dict(color='#a0aec0'),
+                            tickfont=dict(color='#a0aec0')
+                        ),
+                        hovertemplate="Layers: %{y}<br>Epochs: %{x}<br>MAE: %{z:.3f} nm<extra></extra>",
+                        zmin=heatmap_epochs_pivot.values.min(),
+                        zmax=heatmap_epochs_pivot.values.max()
+                    ))
+
+                    fig_epochs.update_layout(
+                        template='plotly_dark',
+                        paper_bgcolor='#0E1117',
+                        plot_bgcolor='#0E1117',
+                        font=dict(color='#a0aec0'),
+                        xaxis=dict(
+                            title='Training Epochs',
+                            tickfont=dict(color='#e2e8f0'),
+                            type='category'
+                        ),
+                        yaxis=dict(
+                            title='Network Depth',
+                            tickfont=dict(color='#e2e8f0'),
+                            type='category'
+                        ),
+                        height=350,
+                        margin=dict(l=80, r=40, t=40, b=60)
+                    )
+
+                    st.plotly_chart(fig_epochs, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"Error generating epochs heatmap: {str(e)}")
 
         st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
 
