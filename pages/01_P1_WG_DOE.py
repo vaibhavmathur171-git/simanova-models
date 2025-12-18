@@ -193,14 +193,20 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(75, 0, 130, 0.25);
     }
 
-    /* Force LaTeX to white for maximum visibility */
-    .stLatex, .katex, .katex-html {
+    /* Force LaTeX to white for maximum visibility - aggressive targeting */
+    .stLatex, .katex, .katex-html, .katex-display {
+        color: #FFFFFF !important;
+        filter: brightness(0) invert(1);
+    }
+    .katex .base, .katex span, .katex .mord, .katex .mbin, .katex .mrel {
         color: #FFFFFF !important;
     }
-    .katex .base, .katex span {
+    div[data-testid="stMarkdownContainer"] .katex {
         color: #FFFFFF !important;
+        filter: brightness(0) invert(1);
     }
-    .latex-container * {
+    /* Alternative: if filter causes issues, use plain white */
+    [class*="katex"] {
         color: #FFFFFF !important;
     }
 
@@ -489,16 +495,29 @@ with tab1:
     st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
     st.markdown('<p class="subsection-header" style="text-align: center;">Governing Physics: The Grating Equation</p>', unsafe_allow_html=True)
 
-    col_eq1, col_eq2, col_eq3 = st.columns([1, 2, 1])
-    with col_eq2:
-        st.markdown('<div class="latex-container">', unsafe_allow_html=True)
-        st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
-        st.markdown("""
-        <p style="color: #E0E0E0; font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
-            Where Λ = grating period, λ = wavelength, m = diffraction order, θ = angles
-        </p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Use Streamlit container for proper styling
+    eq_container = st.container()
+    with eq_container:
+        col_eq1, col_eq2, col_eq3 = st.columns([1, 2, 1])
+        with col_eq2:
+            # Centered equation with inline white background box
+            st.markdown("""
+            <div style='background: linear-gradient(145deg, rgba(75, 0, 130, 0.2), rgba(102, 126, 234, 0.15));
+                        border: 2px solid #4B0082;
+                        border-radius: 12px;
+                        padding: 2rem;
+                        text-align: center;
+                        box-shadow: 0 4px 15px rgba(75, 0, 130, 0.3);'>
+            """, unsafe_allow_html=True)
+
+            st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
+
+            st.markdown("""
+            <p style="color: #FFFFFF; font-size: 0.9rem; text-align: center; margin-top: 0.75rem; font-weight: 500;">
+                Where Λ = grating period, λ = wavelength, m = diffraction order, θ = angles
+            </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # =============================================================================
 # TAB 2: INVERSE SOLVER
