@@ -235,18 +235,31 @@ def load_model():
     """Load trained MLP with caching to prevent lag"""
     paths = [
         SCRIPT_DIR / 'models' / 'p1_mono_model.pth',
-        'models/p1_mono_model.pth'
+        'models/p1_mono_model.pth',
+        Path('models') / 'p1_mono_model.pth'
     ]
     model = SimpleMLP()
     for path in paths:
-        if os.path.exists(path):
-            try:
-                model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
+        try:
+            if os.path.exists(path):
+                model.load_state_dict(torch.load(str(path), map_location=torch.device('cpu')))
                 model.eval()
                 return model
-            except:
-                continue
+        except Exception:
+            continue
     return None
+
+def get_model_status():
+    """Check if model file exists and return status message"""
+    paths = [
+        SCRIPT_DIR / 'models' / 'p1_mono_model.pth',
+        'models/p1_mono_model.pth',
+        Path('models') / 'p1_mono_model.pth'
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            return True, str(path)
+    return False, "Model file not found. Run `python p1_doe_sweep.py` to train."
 
 # =============================================================================
 # PHYSICS FUNCTIONS
@@ -472,7 +485,11 @@ with tab2:
             </div>
             """.format(surrogate_period, error, pct_error), unsafe_allow_html=True)
         else:
-            st.info("Model not loaded — displaying analytical solution only")
+            model_exists, model_msg = get_model_status()
+            if not model_exists:
+                st.warning(f"⚠️ {model_msg}")
+            else:
+                st.info("Model not loaded — displaying analytical solution only")
 
     st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
@@ -519,6 +536,7 @@ with tab2:
     ))
 
     fig.update_layout(
+        template='plotly_dark',
         paper_bgcolor='#0E1117',
         plot_bgcolor='#0E1117',
         font=dict(color='#a0aec0'),
@@ -541,7 +559,8 @@ with tab2:
         margin=dict(l=60, r=40, t=40, b=60)
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    # Use key parameter to force refresh when slider changes
+    st.plotly_chart(fig, use_container_width=True, key=f"manifold_{target_angle}_{wavelength}")
 
 # =============================================================================
 # TAB 3: DOE ANALYSIS
@@ -680,8 +699,9 @@ with tab3:
                 heatmap_pivot = heatmap_pivot[sorted(heatmap_pivot.columns)]
 
                 # Create heatmap with plotly_dark template
+                z_values = heatmap_pivot.values
                 fig_heatmap = go.Figure(data=go.Heatmap(
-                    z=heatmap_pivot.values,
+                    z=z_values,
                     x=[f"{int(s):,}" for s in heatmap_pivot.columns],
                     y=[f"{int(l)} layers" for l in heatmap_pivot.index],
                     colorscale=[
@@ -691,13 +711,12 @@ with tab3:
                         [1.0, '#e74c3c']     # Red (high error)
                     ],
                     colorbar=dict(
-                        title="MAE (nm)",
-                        titlefont=dict(color='#a0aec0'),
+                        title=dict(text="MAE (nm)", font=dict(color='#a0aec0')),
                         tickfont=dict(color='#a0aec0')
                     ),
                     hovertemplate="Layers: %{y}<br>Samples: %{x}<br>MAE: %{z:.3f} nm<extra></extra>",
-                    zmin=heatmap_pivot.values.min(),
-                    zmax=heatmap_pivot.values.max()
+                    zmin=float(np.nanmin(z_values)) if z_values.size > 0 else 0,
+                    zmax=float(np.nanmax(z_values)) if z_values.size > 0 else 1
                 ))
 
                 fig_heatmap.update_layout(
@@ -754,8 +773,9 @@ with tab3:
                     heatmap_epochs_pivot = heatmap_epochs_pivot.sort_index(ascending=True)
                     heatmap_epochs_pivot = heatmap_epochs_pivot[sorted(heatmap_epochs_pivot.columns)]
 
+                    z_epochs = heatmap_epochs_pivot.values
                     fig_epochs = go.Figure(data=go.Heatmap(
-                        z=heatmap_epochs_pivot.values,
+                        z=z_epochs,
                         x=[f"{int(e)} epochs" for e in heatmap_epochs_pivot.columns],
                         y=[f"{int(l)} layers" for l in heatmap_epochs_pivot.index],
                         colorscale=[
@@ -765,13 +785,12 @@ with tab3:
                             [1.0, '#e74c3c']
                         ],
                         colorbar=dict(
-                            title="MAE (nm)",
-                            titlefont=dict(color='#a0aec0'),
+                            title=dict(text="MAE (nm)", font=dict(color='#a0aec0')),
                             tickfont=dict(color='#a0aec0')
                         ),
                         hovertemplate="Layers: %{y}<br>Epochs: %{x}<br>MAE: %{z:.3f} nm<extra></extra>",
-                        zmin=heatmap_epochs_pivot.values.min(),
-                        zmax=heatmap_epochs_pivot.values.max()
+                        zmin=float(np.nanmin(z_epochs)) if z_epochs.size > 0 else 0,
+                        zmax=float(np.nanmax(z_epochs)) if z_epochs.size > 0 else 1
                     ))
 
                     fig_epochs.update_layout(
