@@ -261,6 +261,39 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
+    /* Sidebar styling - high contrast */
+    [data-testid="stSidebar"] {
+        background: #1a1a2e !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #FFFFFF !important;
+    }
+    [data-testid="stSidebar"] .stSlider label {
+        color: #FFFFFF !important;
+    }
+    [data-testid="stSidebar"] .stSlider p {
+        color: #a0aec0 !important;
+    }
+    section[data-testid="stSidebar"] > div {
+        background: #1a1a2e !important;
+    }
+
+    /* Author footer */
+    .author-footer {
+        text-align: center;
+        padding: 2rem 0 1rem 0;
+        border-top: 1px solid #2d2d44;
+        margin-top: 3rem;
+    }
+    .author-footer a {
+        color: #667eea !important;
+        text-decoration: none;
+        margin: 0 0.5rem;
+    }
+    .author-footer a:hover {
+        color: #f093fb !important;
+    }
+
     /* Force LaTeX to white */
     .stLatex, .katex, .katex-html, .katex-display {
         color: #FFFFFF !important;
@@ -532,39 +565,50 @@ with tab1:
 with tab2:
     st.markdown('<h2 class="section-header">Interactive Inference Engine</h2>', unsafe_allow_html=True)
 
-    # Sidebar inputs
-    st.sidebar.markdown("### Input Parameters")
+    # Sidebar - Navigation and inputs
+    st.sidebar.markdown("### Navigation")
+    if st.sidebar.button("← Back to Home", use_container_width=True):
+        st.switch_page("Home.py")
+
     st.sidebar.markdown("---")
+    st.sidebar.markdown("### Input Parameters")
     target_angle = st.sidebar.slider(
-        "Target Diffraction Angle (°)",
+        "Target Diffraction Angle (deg)",
         min_value=-80.0,
         max_value=-30.0,
         value=-51.0,
         step=0.1
     )
     wavelength = st.sidebar.slider(
-        "Wavelength λ (nm)",
+        "Wavelength (nm)",
         min_value=450,
         max_value=650,
         value=532,
         step=1
     )
 
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Model Status")
+
     # Load model and compute BOTH analytical and surrogate
     model = load_model()
     analytical_period = grating_equation(target_angle, wavelength_nm=wavelength)
 
-    # Always compute surrogate (use analytical as fallback if no model)
+    # Compute surrogate prediction
     if model:
         input_tensor = torch.tensor([[target_angle]], dtype=torch.float32)
         with torch.no_grad():
             surrogate_period = model(input_tensor).item()
         model_active = True
+        st.sidebar.success("Model Loaded")
+        st.sidebar.caption("Trained on 10K samples with Gaussian noise (σ=0.5°) for robustness")
     else:
-        surrogate_period = analytical_period  # Fallback
+        surrogate_period = analytical_period  # Fallback to analytical
         model_active = False
+        st.sidebar.warning("Model Not Found")
+        st.sidebar.caption("Run `python p1_doe_sweep.py` to train")
 
-    # Calculate residual error
+    # Calculate residual error (only meaningful when model is active)
     residual_error = abs(analytical_period - surrogate_period)
     pct_error = (residual_error / analytical_period) * 100 if analytical_period > 0 else 0
 
@@ -590,22 +634,40 @@ with tab2:
         """, unsafe_allow_html=True)
 
     with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-card-label">Neural Surrogate</p>
-            <p class="metric-card-value">{surrogate_period:.2f} nm</p>
-            <span class="metric-card-delta delta-good">{'Model Active' if model_active else 'Fallback Mode'}</span>
-        </div>
-        """, unsafe_allow_html=True)
+        if model_active:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Neural Surrogate</p>
+                <p class="metric-card-value">{surrogate_period:.2f} nm</p>
+                <span class="metric-card-delta delta-good">Model Active</span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Neural Surrogate</p>
+                <p class="metric-card-value">--</p>
+                <span class="metric-card-delta delta-neutral">Train Model First</span>
+            </div>
+            """, unsafe_allow_html=True)
 
     with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-card-label">Residual Error</p>
-            <p class="metric-card-value">{residual_error:.3f} nm</p>
-            <span class="metric-card-delta delta-good">Δ = {pct_error:.3f}%</span>
-        </div>
-        """, unsafe_allow_html=True)
+        if model_active:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Residual Error</p>
+                <p class="metric-card-value">{residual_error:.3f} nm</p>
+                <span class="metric-card-delta delta-good">|Analytical - AI|</span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Residual Error</p>
+                <p class="metric-card-value">--</p>
+                <span class="metric-card-delta delta-neutral">N/A</span>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
 
@@ -879,3 +941,23 @@ with tab3:
 
     else:
         st.warning("DOE results file not found. Run `python p1_doe_sweep.py` to generate data.")
+
+# =============================================================================
+# AUTHOR FOOTER
+# =============================================================================
+st.markdown("<div style='height: 3rem'></div>", unsafe_allow_html=True)
+st.markdown("""
+<div class="author-footer">
+    <p style="margin: 0; color: #a0aec0; font-size: 0.9rem;">
+        Built by <strong style="color: #FFFFFF;">Vaibhav Mathur</strong>
+    </p>
+    <p style="margin: 0.5rem 0 0 0;">
+        <a href="https://x.com/vaibhavmathur91" target="_blank" style="color: #667eea; text-decoration: none; margin-right: 1.5rem;">
+            X (Twitter)
+        </a>
+        <a href="https://linkedin.com/in/vaibhavmathur91" target="_blank" style="color: #667eea; text-decoration: none;">
+            LinkedIn
+        </a>
+    </p>
+</div>
+""", unsafe_allow_html=True)

@@ -334,9 +334,13 @@ st.markdown("<div class='custom-divider'></div>", unsafe_allow_html=True)
 
 st.markdown("""
 <div style="text-align: center; padding: 2rem 0;">
-    <p style="color: #4a5568; font-size: 0.85rem;">
-        Built with neural surrogates and too much coffee |
-        <a href="https://github.com/vaibhavmathur171-git/simanova-models" style="color: #667eea; text-decoration: none;">GitHub</a>
+    <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 0.5rem;">
+        Built by <strong style="color: #FFFFFF;">Vaibhav Mathur</strong>
+    </p>
+    <p style="color: #4a5568; font-size: 0.85rem; margin: 0;">
+        <a href="https://x.com/vaibhavmathur91" target="_blank" style="color: #667eea; text-decoration: none; margin-right: 1rem;">X (Twitter)</a>
+        <a href="https://linkedin.com/in/vaibhavmathur91" target="_blank" style="color: #667eea; text-decoration: none; margin-right: 1rem;">LinkedIn</a>
+        <a href="https://github.com/vaibhavmathur171-git/simanova-models" target="_blank" style="color: #667eea; text-decoration: none;">GitHub</a>
     </p>
 </div>
 """, unsafe_allow_html=True)
