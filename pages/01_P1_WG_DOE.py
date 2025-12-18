@@ -99,13 +99,14 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Metric styling */
+    /* Metric styling - High-visibility info cards */
     .metric-container {
         background: linear-gradient(145deg, #1a1a2e 0%, #16161a 100%);
-        border: 1px solid #2d2d44;
+        border: 2px solid #4B0082;
         border-radius: 12px;
         padding: 1.5rem;
         text-align: center;
+        box-shadow: 0 4px 15px rgba(75, 0, 130, 0.3);
     }
 
     .metric-label {
@@ -183,26 +184,31 @@ st.markdown("""
 
     /* LaTeX centering and high contrast */
     .latex-container {
-        background: rgba(102, 126, 234, 0.1);
-        border: 1px solid rgba(102, 126, 234, 0.3);
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin: 1rem 0;
+        background: linear-gradient(145deg, rgba(75, 0, 130, 0.15), rgba(102, 126, 234, 0.1));
+        border: 2px solid #4B0082;
+        border-radius: 12px;
+        padding: 2rem;
+        margin: 1.5rem 0;
         text-align: center;
+        box-shadow: 0 4px 15px rgba(75, 0, 130, 0.25);
     }
 
-    /* Force LaTeX to white for visibility */
+    /* Force LaTeX to white for maximum visibility */
     .stLatex, .katex, .katex-html {
         color: #FFFFFF !important;
     }
-    .katex .base {
+    .katex .base, .katex span {
+        color: #FFFFFF !important;
+    }
+    .latex-container * {
         color: #FFFFFF !important;
     }
 
-    /* Professional dark-themed dataframes */
+    /* Professional dark-themed dataframes with purple accent */
     .stDataFrame {
-        border: 1px solid #667eea !important;
+        border: 2px solid #4B0082 !important;
         border-radius: 8px !important;
+        box-shadow: 0 2px 10px rgba(75, 0, 130, 0.2);
     }
     .stDataFrame > div {
         background-color: #1E1E1E !important;
@@ -485,11 +491,13 @@ with tab1:
 
     col_eq1, col_eq2, col_eq3 = st.columns([1, 2, 1])
     with col_eq2:
+        st.markdown('<div class="latex-container">', unsafe_allow_html=True)
         st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
         st.markdown("""
-        <p style="color: #a0aec0; font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
+        <p style="color: #E0E0E0; font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
             Where Λ = grating period, λ = wavelength, m = diffraction order, θ = angles
         </p>
+        </div>
         """, unsafe_allow_html=True)
 
 # =============================================================================
