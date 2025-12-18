@@ -323,6 +323,18 @@ def get_model_status():
             return True, str(path)
     return False, "Model file not found. Run `python p1_doe_sweep.py` to train."
 
+def get_image_path(filename):
+    """Get image path with fallback locations for Streamlit Cloud compatibility"""
+    paths = [
+        SCRIPT_DIR / 'assets' / filename,
+        Path('assets') / filename,
+        f'assets/{filename}',
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            return str(path)
+    return None
+
 # =============================================================================
 # PHYSICS FUNCTIONS
 # =============================================================================
@@ -376,14 +388,48 @@ PLOTLY_DARK_TEMPLATE = {
 st.markdown('<h1 class="page-title">P1: Inverse Waveguide Grating Design</h1>', unsafe_allow_html=True)
 st.markdown('<p class="page-subtitle">Neural surrogate for real-time diffractive optics optimization</p>', unsafe_allow_html=True)
 
+# Project description
+st.markdown("""
+<p style="color: #a0aec0; font-size: 0.95rem; line-height: 1.7; margin: 1rem 0 1.5rem 0; text-align: center; max-width: 900px; margin-left: auto; margin-right: auto;">
+    This engine demonstrates <strong>inverse design</strong> for AR waveguide gratings using neural networks.
+    Given a target diffraction angle, the model predicts the required grating period (Λ) in milliseconds—bypassing
+    expensive iterative RCWA simulations. A <strong>Design of Experiments (DOE)</strong> sweep identifies optimal
+    neural architecture parameters for sub-nanometer accuracy.
+</p>
+""", unsafe_allow_html=True)
+
+# Visual assets - Grating physics and Neural network
+grating_img = get_image_path('p1_grating.jpg')
+neural_img = get_image_path('p1_neural_net.jpg')
+
+if grating_img and neural_img:
+    img_col1, img_col2 = st.columns(2)
+    with img_col1:
+        st.image(grating_img, caption="Diffractive Grating Physics", use_container_width=True)
+    with img_col2:
+        st.image(neural_img, caption="Neural Surrogate Architecture", use_container_width=True)
+
+st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+
+# Governing Equation
+st.markdown('<p class="subsection-header" style="text-align: center;">The Grating Equation</p>', unsafe_allow_html=True)
+col_eq1, col_eq2, col_eq3 = st.columns([1, 2, 1])
+with col_eq2:
+    st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
+    st.markdown('<p style="color: #a0aec0; font-size: 0.8rem; text-align: center;">Λ = grating period, λ = wavelength, m = diffraction order</p>', unsafe_allow_html=True)
+
+st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+
 # Performance badges
 st.markdown("""
+<div style="text-align: center;">
 <span class="perf-badge">Inference: &lt;10ms</span>
 <span class="perf-badge">1000x Speedup vs. RCWA</span>
 <span class="perf-badge">Model: 4-Layer MLP</span>
+</div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
 # =============================================================================
 # TABS
