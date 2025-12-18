@@ -337,7 +337,20 @@ with tab1:
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        # Step 1
+        # Objective
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">OBJ</span>
+            <span class="method-title">Objective</span>
+            <p class="method-desc">
+                Characterizing the efficacy of <strong>Neural Surrogates</strong> in diffractive waveguide design.
+                We evaluate if a 4-layer MLP can perform high-fidelity inverse mapping with
+                <strong>sub-millisecond deterministic latency</strong>, bypassing iterative numerical solvers.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Design Space
         st.markdown("""
         <div class="method-card">
             <span class="method-number">1</span>
@@ -350,7 +363,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-        # Step 2
+        # Forward Generation
         st.markdown("""
         <div class="method-card">
             <span class="method-number">2</span>
@@ -363,7 +376,8 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-        # Step 3
+    with col2:
+        # Data Inversion
         st.markdown("""
         <div class="method-card">
             <span class="method-number">3</span>
@@ -377,21 +391,21 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-    with col2:
-        # Step 4
+        # Robustness Protocol
         st.markdown("""
         <div class="method-card">
             <span class="method-number">4</span>
-            <span class="method-title">Stochastic Perturbation</span>
+            <span class="method-title">Robustness Protocol</span>
             <p class="method-desc">
-                <strong>Gaussian Noise:</strong> σ = 0.5° injected into input angles<br>
-                <strong>Purpose:</strong> Simulate metrology uncertainty and fabrication tolerances<br>
-                <strong>Effect:</strong> Regularization that improves generalization on real-world data
+                To account for <strong>manufacturing tolerances</strong> and metrology uncertainty,
+                we utilize <strong>Stochastic Perturbation</strong>. By injecting Gaussian noise (σ = 0.5°)
+                into training inputs, we force the surrogate to converge on the underlying physical manifold,
+                ensuring robustness against real-world fabrication variance.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
-        # Step 5
+        # Feature Normalization
         st.markdown("""
         <div class="method-card">
             <span class="method-number">5</span>
@@ -404,13 +418,15 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-        # Governing Equation
-        st.markdown('<p class="subsection-header">Governing Physics: The Grating Equation</p>', unsafe_allow_html=True)
-        st.markdown('<div class="latex-container">', unsafe_allow_html=True)
+    # Governing Equation - Full Width Centered
+    st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
+    st.markdown('<p class="subsection-header" style="text-align: center;">Governing Physics: The Grating Equation</p>', unsafe_allow_html=True)
+
+    col_eq1, col_eq2, col_eq3 = st.columns([1, 2, 1])
+    with col_eq2:
         st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
-        st.markdown('</div>', unsafe_allow_html=True)
         st.markdown("""
-        <p style="color: #a0aec0; font-size: 0.85rem; text-align: center;">
+        <p style="color: #a0aec0; font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
             Where Λ = grating period, λ = wavelength, m = diffraction order, θ = angles
         </p>
         """, unsafe_allow_html=True)
