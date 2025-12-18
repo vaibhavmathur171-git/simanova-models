@@ -398,16 +398,17 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
-# Visual assets - Grating physics and Neural network
+# Visual assets - Grating physics and Neural network (compact sizing)
 grating_img = get_image_path('p1_grating.jpg')
 neural_img = get_image_path('p1_neural_net.jpg')
 
 if grating_img and neural_img:
-    img_col1, img_col2 = st.columns(2)
+    # Use padding columns to control image size
+    _, img_col1, img_col2, _ = st.columns([1, 2, 2, 1])
     with img_col1:
-        st.image(grating_img, caption="Diffractive Grating Physics", use_container_width=True)
+        st.image(grating_img, caption="Diffractive Grating", use_container_width=True)
     with img_col2:
-        st.image(neural_img, caption="Neural Surrogate Architecture", use_container_width=True)
+        st.image(neural_img, caption="Neural Surrogate", use_container_width=True)
 
 st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 
@@ -524,20 +525,6 @@ with tab1:
                 prevents large input values from dominating the loss landscape.
             </p>
         </div>
-        """, unsafe_allow_html=True)
-
-    # Governing Equation - Full Width Centered
-    st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
-    st.markdown('<p class="subsection-header" style="text-align: center;">Governing Physics: The Grating Equation</p>', unsafe_allow_html=True)
-
-    # Simple centered equation without box
-    col_eq1, col_eq2, col_eq3 = st.columns([1, 2, 1])
-    with col_eq2:
-        st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
-        st.markdown("""
-        <p style="color: #a0aec0; font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">
-            Where Λ = grating period, λ = wavelength, m = diffraction order, θ = angles
-        </p>
         """, unsafe_allow_html=True)
 
 # =============================================================================
