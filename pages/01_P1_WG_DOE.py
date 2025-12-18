@@ -408,7 +408,7 @@ st.markdown('<p class="page-subtitle">Neural Surrogate for Real-Time Diffractive
 st.markdown("""
 <div class="badge-container">
     <span class="perf-badge">Inference: &lt;10ms</span>
-    <span class="perf-badge">1000× Speedup vs. RCWA</span>
+    <span class="perf-badge">1000x Speedup vs. RCWA</span>
     <span class="perf-badge">Model: 4-Layer MLP</span>
 </div>
 """, unsafe_allow_html=True)
@@ -860,7 +860,7 @@ with tab3:
             st.markdown("""
             **Key Insights:**
 
-            1. **Underfitting Regime**: Shallow networks (1-2 layers) cannot approximate the sin⁻¹(·) nonlinearity.
+            1. **Underfitting Regime**: Shallow networks (1-2 layers) cannot approximate the arcsin nonlinearity.
 
             2. **Overfitting Regime**: Deep networks with small datasets show unstable convergence.
 
