@@ -373,8 +373,8 @@ PLOTLY_DARK_TEMPLATE = {
 # =============================================================================
 # PAGE HEADER
 # =============================================================================
-st.markdown('<h1 class="page-title">Project 1: Characterizing Neural Surrogates for Inverse Optical Design</h1>', unsafe_allow_html=True)
-st.markdown('<p class="page-subtitle">Evaluating MLP capacity to bypass iterative RCWA solvers for real-time diffractive waveguide design</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="page-title">P1: Inverse Waveguide Grating Design</h1>', unsafe_allow_html=True)
+st.markdown('<p class="page-subtitle">Neural surrogate for real-time diffractive optics optimization</p>', unsafe_allow_html=True)
 
 # Performance badges
 st.markdown("""
