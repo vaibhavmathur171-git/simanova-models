@@ -337,7 +337,11 @@ class SimpleMLP(nn.Module):
 # =============================================================================
 # CACHED RESOURCE LOADERS
 # =============================================================================
-SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
+# Get the root directory (parent of pages/)
+try:
+    SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
+except:
+    SCRIPT_DIR = Path.cwd()
 
 @st.cache_data
 def load_doe_data():
@@ -345,32 +349,41 @@ def load_doe_data():
     paths = [
         SCRIPT_DIR / 'data' / 'p1_doe_results.csv',
         SCRIPT_DIR / 'Data' / 'p1_doe_results.csv',
+        Path.cwd() / 'data' / 'p1_doe_results.csv',
+        Path.cwd() / 'Data' / 'p1_doe_results.csv',
         'data/p1_doe_results.csv',
         'Data/p1_doe_results.csv'
     ]
     for path in paths:
-        if os.path.exists(path):
-            return pd.read_csv(path)
+        try:
+            if os.path.exists(path):
+                return pd.read_csv(path)
+        except:
+            continue
     return None
 
 @st.cache_resource
 def load_model():
-    """Load trained MLP with caching"""
+    """Load trained MLP with caching - returns (model, status_msg)"""
     paths = [
         SCRIPT_DIR / 'models' / 'p1_mono_model.pth',
+        Path.cwd() / 'models' / 'p1_mono_model.pth',
         'models/p1_mono_model.pth',
-        Path('models') / 'p1_mono_model.pth'
     ]
-    model = SimpleMLP()
+
     for path in paths:
         try:
-            if os.path.exists(path):
-                model.load_state_dict(torch.load(str(path), map_location=torch.device('cpu')))
+            path_str = str(path)
+            if os.path.exists(path_str):
+                model = SimpleMLP(n_layers=4, width=64)
+                state_dict = torch.load(path_str, map_location=torch.device('cpu'))
+                model.load_state_dict(state_dict)
                 model.eval()
-                return model
-        except Exception:
+                return model, f"Loaded from {path_str}"
+        except Exception as e:
             continue
-    return None
+
+    return None, "Model file not found"
 
 def get_image_path(filename):
     """Get image path with fallback locations"""
@@ -592,22 +605,22 @@ with tab2:
     st.sidebar.markdown("### Model Status")
 
     # Load model and compute BOTH analytical and surrogate
-    model = load_model()
+    model, model_status = load_model()
     analytical_period = grating_equation(target_angle, wavelength_nm=wavelength)
 
     # Compute surrogate prediction
-    if model:
+    if model is not None:
         input_tensor = torch.tensor([[target_angle]], dtype=torch.float32)
         with torch.no_grad():
             surrogate_period = model(input_tensor).item()
         model_active = True
         st.sidebar.success("Model Loaded")
-        st.sidebar.caption("Trained on 10K samples with Gaussian noise (σ=0.5°) for robustness")
+        st.sidebar.caption("4-layer MLP trained on 10K samples")
     else:
         surrogate_period = analytical_period  # Fallback to analytical
         model_active = False
         st.sidebar.warning("Model Not Found")
-        st.sidebar.caption("Run `python p1_doe_sweep.py` to train")
+        st.sidebar.caption(f"Status: {model_status}")
 
     # Calculate residual error (only meaningful when model is active)
     residual_error = abs(analytical_period - surrogate_period)
