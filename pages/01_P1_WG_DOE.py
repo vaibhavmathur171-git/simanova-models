@@ -319,19 +319,20 @@ st.markdown("""
 # MODEL ARCHITECTURE
 # =============================================================================
 class SimpleMLP(nn.Module):
-    """4-layer MLP for inverse grating design"""
-    def __init__(self):
+    """4-layer MLP for inverse grating design (matches trained model)"""
+    def __init__(self, n_layers=4, width=64):
         super(SimpleMLP, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(1, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+        layers = []
+        layers.append(nn.Linear(1, width))
+        layers.append(nn.ReLU())
+        for _ in range(n_layers - 1):
+            layers.append(nn.Linear(width, width))
+            layers.append(nn.ReLU())
+        layers.append(nn.Linear(width, 1))
+        self.network = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.layers(x)
+        return self.network(x)
 
 # =============================================================================
 # CACHED RESOURCE LOADERS
