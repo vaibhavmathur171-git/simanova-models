@@ -181,7 +181,7 @@ st.markdown("""
         background: #0E1117;
     }
 
-    /* LaTeX centering */
+    /* LaTeX centering and high contrast */
     .latex-container {
         background: rgba(102, 126, 234, 0.1);
         border: 1px solid rgba(102, 126, 234, 0.3);
@@ -189,6 +189,67 @@ st.markdown("""
         padding: 1.5rem;
         margin: 1rem 0;
         text-align: center;
+    }
+
+    /* Force LaTeX to white for visibility */
+    .stLatex, .katex, .katex-html {
+        color: #FFFFFF !important;
+    }
+    .katex .base {
+        color: #FFFFFF !important;
+    }
+
+    /* Professional dark-themed dataframes */
+    .stDataFrame {
+        border: 1px solid #667eea !important;
+        border-radius: 8px !important;
+    }
+    .stDataFrame > div {
+        background-color: #1E1E1E !important;
+    }
+    .stDataFrame [data-testid="stDataFrameResizable"] {
+        background-color: #1E1E1E !important;
+    }
+    div[data-testid="stDataFrame"] > div {
+        background-color: #1E1E1E !important;
+        border-radius: 8px;
+    }
+
+    /* DataFrame header styling */
+    .stDataFrame th {
+        background-color: #2d2d44 !important;
+        color: #E0E0E0 !important;
+        border-bottom: 2px solid #667eea !important;
+    }
+
+    /* DataFrame cell styling */
+    .stDataFrame td {
+        background-color: #1E1E1E !important;
+        color: #E0E0E0 !important;
+        border-bottom: 1px solid #2d2d44 !important;
+    }
+
+    /* DataFrame row hover */
+    .stDataFrame tr:hover td {
+        background-color: #2a2a3e !important;
+    }
+
+    /* Selectbox styling for filters */
+    .stSelectbox > div > div {
+        background-color: #1a1a2e;
+        border-color: #2d2d44;
+    }
+
+    /* Simulation mode badge */
+    .sim-mode-badge {
+        display: inline-block;
+        background: rgba(241, 196, 15, 0.15);
+        border: 1px solid rgba(241, 196, 15, 0.4);
+        color: #f1c40f;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        margin: 0.5rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -501,11 +562,13 @@ with tab2:
             </div>
             """.format(surrogate_period, error, pct_error), unsafe_allow_html=True)
         else:
-            model_exists, model_msg = get_model_status()
-            if not model_exists:
-                st.warning(f"⚠️ {model_msg}")
-            else:
-                st.info("Model not loaded — displaying analytical solution only")
+            st.markdown("""
+            <div class="metric-container">
+                <p class="metric-label">Neural Surrogate</p>
+                <p class="metric-value" style="font-size: 1.2rem; color: #a0aec0;">—</p>
+                <p class="sim-mode-badge">Simulation-Only Mode</p>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
@@ -538,17 +601,21 @@ with tab2:
             line=dict(color='#f093fb', width=2, dash='dash')
         ))
 
-    # Query point
+    # Query point - Highly visible neon cyan
     fig.add_trace(go.Scatter(
         x=[target_angle],
         y=[analytical_period],
-        mode='markers',
+        mode='markers+text',
         name='Query Point',
         marker=dict(
-            color='#2ecc71',
-            size=16,
-            line=dict(color='white', width=2)
-        )
+            color='#00FFFF',  # Neon cyan
+            size=18,
+            line=dict(color='white', width=3),
+            symbol='circle'
+        ),
+        text=[f"({target_angle:.1f}°, {analytical_period:.1f}nm)"],
+        textposition="top center",
+        textfont=dict(color='#00FFFF', size=11)
     ))
 
     fig.update_layout(
@@ -693,65 +760,48 @@ with tab3:
 
         if 'n_layers' in df.columns and 'n_samples' in df.columns and mae_col in df.columns:
             try:
-                # Use pivot_table with aggfunc='mean' to handle duplicates automatically
-                heatmap_pivot = pd.pivot_table(
-                    df,
-                    values=mae_col,
+                # Robust pivot with aggregation and fill
+                heatmap_pivot = df.pivot_table(
                     index='n_layers',
                     columns='n_samples',
+                    values=mae_col,
                     aggfunc='mean'
-                )
+                ).fillna(0)
 
-                # Ensure complete grid by reindexing (handles missing combinations)
-                all_layers = sorted(df['n_layers'].unique())
-                all_samples = sorted(df['n_samples'].unique())
-                heatmap_pivot = heatmap_pivot.reindex(index=all_layers, columns=all_samples)
+                # Get values as numpy array
+                z_data = heatmap_pivot.values
+                x_labels = [str(int(c)) for c in heatmap_pivot.columns]
+                y_labels = [f"{int(r)}L" for r in heatmap_pivot.index]
 
-                # Fill any remaining NaN with 0 or interpolate
-                heatmap_pivot = heatmap_pivot.fillna(heatmap_pivot.mean().mean())
-
-                # Sort axes for proper display
-                heatmap_pivot = heatmap_pivot.sort_index(ascending=True)
-                heatmap_pivot = heatmap_pivot[sorted(heatmap_pivot.columns)]
-
-                # Create heatmap with plotly_dark template
-                z_values = heatmap_pivot.values
+                # Create heatmap with Plasma colorscale
                 fig_heatmap = go.Figure(data=go.Heatmap(
-                    z=z_values,
-                    x=[f"{int(s):,}" for s in heatmap_pivot.columns],
-                    y=[f"{int(l)} layers" for l in heatmap_pivot.index],
-                    colorscale=[
-                        [0.0, '#2ecc71'],    # Green (low error)
-                        [0.3, '#667eea'],    # Purple
-                        [0.6, '#f093fb'],    # Pink
-                        [1.0, '#e74c3c']     # Red (high error)
-                    ],
+                    z=z_data,
+                    x=x_labels,
+                    y=y_labels,
+                    colorscale='Plasma',
+                    reversescale=True,  # Lower MAE = brighter
                     colorbar=dict(
-                        title=dict(text="MAE (nm)", font=dict(color='#a0aec0')),
-                        tickfont=dict(color='#a0aec0')
+                        title="MAE (nm)",
+                        tickfont=dict(color='#E0E0E0')
                     ),
-                    hovertemplate="Layers: %{y}<br>Samples: %{x}<br>MAE: %{z:.3f} nm<extra></extra>",
-                    zmin=float(np.nanmin(z_values)) if z_values.size > 0 else 0,
-                    zmax=float(np.nanmax(z_values)) if z_values.size > 0 else 1
+                    hovertemplate="Depth: %{y}<br>Samples: %{x}<br>MAE: %{z:.2f} nm<extra></extra>"
                 ))
 
                 fig_heatmap.update_layout(
                     template='plotly_dark',
                     paper_bgcolor='#0E1117',
                     plot_bgcolor='#0E1117',
-                    font=dict(color='#a0aec0'),
+                    font=dict(color='#E0E0E0'),
                     xaxis=dict(
                         title='Training Samples',
-                        tickfont=dict(color='#e2e8f0'),
-                        type='category'
+                        tickfont=dict(color='#E0E0E0')
                     ),
                     yaxis=dict(
                         title='Network Depth',
-                        tickfont=dict(color='#e2e8f0'),
-                        type='category'
+                        tickfont=dict(color='#E0E0E0')
                     ),
                     height=350,
-                    margin=dict(l=80, r=40, t=40, b=60)
+                    margin=dict(l=80, r=60, t=40, b=60)
                 )
 
                 st.plotly_chart(fig_heatmap, use_container_width=True)
