@@ -806,11 +806,16 @@ with tab2:
                       line=dict(color="white", width=1, dash="dash"))
 
     fig_eye.update_layout(
-        **get_plotly_layout(height=450),
+        template='plotly_dark',
+        paper_bgcolor='#0E1117',
+        plot_bgcolor='#0E1117',
+        font=dict(color='#FFFFFF', family='Inter'),
+        height=450,
         showlegend=True,
         xaxis=dict(visible=False, range=[-1.5, 1.5]),
         yaxis=dict(visible=False, range=[-1.2, 1.2]),
-        legend=dict(x=0.02, y=0.98, bgcolor='rgba(0,0,0,0.5)')
+        legend=dict(x=0.02, y=0.98, bgcolor='rgba(0,0,0,0.5)', font=dict(color='#FFFFFF')),
+        margin=dict(l=60, r=40, t=60, b=60)
     )
 
     st.plotly_chart(fig_eye, use_container_width=True, key=f"eye_view_{target_angle}_{glass_type}")
