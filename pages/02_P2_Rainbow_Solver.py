@@ -25,31 +25,15 @@ st.set_page_config(
 )
 
 # =============================================================================
-# ROBUST PATH RESOLUTION
+# ROBUST PATH RESOLUTION (MATCHING P1 PATTERN)
 # =============================================================================
-def get_project_root():
-    """Get project root with multiple fallback strategies"""
-    try:
-        # Strategy 1: Relative to this file
-        script_path = Path(__file__).resolve()
-        root = script_path.parent.parent
-        if (root / 'Data').exists() or (root / 'data').exists():
-            return root
-    except:
-        pass
+# Get the root directory (parent of pages/)
+try:
+    SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
+except:
+    SCRIPT_DIR = Path.cwd()
 
-    try:
-        # Strategy 2: Current working directory
-        cwd = Path.cwd()
-        if (cwd / 'Data').exists() or (cwd / 'data').exists():
-            return cwd
-    except:
-        pass
-
-    # Strategy 3: Environment variable or default
-    return Path(os.environ.get('PROJECT_ROOT', '.'))
-
-PROJECT_ROOT = get_project_root()
+PROJECT_ROOT = SCRIPT_DIR  # Alias for compatibility
 
 # =============================================================================
 # CUSTOM CSS - PROFESSIONAL DARK MODE
@@ -145,15 +129,17 @@ def generate_static_doe():
 def load_doe_data():
     """Load DOE results with fallback to static data"""
     paths = [
-        PROJECT_ROOT / 'Data' / 'p2_doe_results.csv',
-        PROJECT_ROOT / 'data' / 'p2_doe_results.csv',
-        Path(__file__).parent.parent / 'Data' / 'p2_doe_results.csv',
-        Path(__file__).parent.parent / 'data' / 'p2_doe_results.csv',
+        SCRIPT_DIR / 'data' / 'p2_doe_results.csv',
+        SCRIPT_DIR / 'Data' / 'p2_doe_results.csv',
+        Path.cwd() / 'data' / 'p2_doe_results.csv',
+        Path.cwd() / 'Data' / 'p2_doe_results.csv',
+        'data/p2_doe_results.csv',
+        'Data/p2_doe_results.csv',
     ]
 
     for path in paths:
         try:
-            if path.exists():
+            if os.path.exists(path):
                 df = pd.read_csv(path)
                 df.columns = df.columns.str.lower().str.strip()
                 if 'mae_nm' in df.columns or 'mae' in df.columns:
@@ -168,40 +154,43 @@ def load_doe_data():
 def load_scalers():
     """Load scaler parameters for model inference"""
     paths = [
-        PROJECT_ROOT / 'models' / 'p2_scalers.json',
-        Path(__file__).parent.parent / 'models' / 'p2_scalers.json',
+        SCRIPT_DIR / 'models' / 'p2_scalers.json',
+        Path.cwd() / 'models' / 'p2_scalers.json',
+        'models/p2_scalers.json',
     ]
     for path in paths:
         try:
-            if path.exists():
+            if os.path.exists(path):
                 with open(path, 'r') as f:
                     return json.load(f)
         except:
             continue
-    # Return default scalers if file not found
+    # Return default scalers if file not found (hardcoded from training)
     return {
-        "scaler_X_mean": [-50.35, 0.5],
-        "scaler_X_scale": [14.39, 0.5],
-        "scaler_y_mean": 459.26,
-        "scaler_y_scale": 120.51
+        "scaler_X_mean": [-50.34740211391449, 0.50025],
+        "scaler_X_scale": [14.390951526789614, 0.4999999374999994],
+        "scaler_y_mean": 459.2576668510437,
+        "scaler_y_scale": 120.51156191729024
     }
 
 @st.cache_resource
 def load_model():
     """Load trained ResNet with caching - returns (model, loaded_flag, status_msg)"""
     paths = [
-        PROJECT_ROOT / 'models' / 'p2_rainbow_model.pth',
-        Path(__file__).parent.parent / 'models' / 'p2_rainbow_model.pth',
+        SCRIPT_DIR / 'models' / 'p2_rainbow_model.pth',
+        Path.cwd() / 'models' / 'p2_rainbow_model.pth',
+        'models/p2_rainbow_model.pth',
     ]
 
     for path in paths:
         try:
-            if path.exists():
+            path_str = str(path)
+            if os.path.exists(path_str):
                 model = SpectralResNet(input_dim=2, hidden_dim=128, num_blocks=4)
-                state_dict = torch.load(str(path), map_location=torch.device('cpu'), weights_only=True)
+                state_dict = torch.load(path_str, map_location=torch.device('cpu'))
                 model.load_state_dict(state_dict)
                 model.eval()
-                return model, True, f"Loaded: {path.name}"
+                return model, True, f"Loaded from {path_str}"
         except Exception as e:
             continue
 
