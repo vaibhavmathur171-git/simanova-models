@@ -358,7 +358,7 @@ try:
 except:
     SCRIPT_DIR = Path.cwd()
 
-@st.cache_data
+@st.cache_data(ttl=60)  # Refresh every 60 seconds during debugging
 def load_doe_data():
     """Load DOE results with fallback paths"""
     paths = [
@@ -941,13 +941,17 @@ with tab3:
 
     if df is not None and not df.empty:
         # Columns already normalized in load_doe_data()
-        mae_col = 'mae_nm' if 'mae_nm' in df.columns else 'mae'
-        rmse_col = 'rmse_nm' if 'rmse_nm' in df.columns else 'rmse'
-
-        # Verify mae column exists before proceeding
-        if mae_col not in df.columns:
-            st.error(f"DOE data missing required column. Found: {list(df.columns)}")
+        # Find the correct MAE column name
+        if 'mae_nm' in df.columns:
+            mae_col = 'mae_nm'
+        elif 'mae' in df.columns:
+            mae_col = 'mae'
+        else:
+            st.error(f"DOE data missing MAE column. Found columns: {list(df.columns)}")
             st.stop()
+
+        # Find RMSE column
+        rmse_col = 'rmse_nm' if 'rmse_nm' in df.columns else ('rmse' if 'rmse' in df.columns else None)
 
         # Find optimal configuration
         best_idx = df[mae_col].idxmin()
@@ -955,7 +959,7 @@ with tab3:
         best_blocks = int(best_row.get('num_blocks', 0))
         best_lr = best_row.get('learning_rate', 0)
         best_mae = best_row[mae_col]
-        best_rmse = best_row.get(rmse_col, 0)
+        best_rmse = best_row.get(rmse_col, 0) if rmse_col else 0
 
         # =================================================================
         # OPTIMAL CONFIGURATION HIGHLIGHT
