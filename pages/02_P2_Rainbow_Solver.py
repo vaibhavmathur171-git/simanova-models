@@ -362,18 +362,25 @@ except:
 def load_doe_data():
     """Load DOE results with fallback paths"""
     paths = [
-        SCRIPT_DIR / 'data' / 'p2_doe_results.csv',
         SCRIPT_DIR / 'Data' / 'p2_doe_results.csv',
-        Path.cwd() / 'data' / 'p2_doe_results.csv',
+        SCRIPT_DIR / 'data' / 'p2_doe_results.csv',
         Path.cwd() / 'Data' / 'p2_doe_results.csv',
+        Path.cwd() / 'data' / 'p2_doe_results.csv',
+        Path(__file__).parent.parent / 'Data' / 'p2_doe_results.csv',
+        Path(__file__).parent.parent / 'data' / 'p2_doe_results.csv',
+        'Data/p2_doe_results.csv',
         'data/p2_doe_results.csv',
-        'Data/p2_doe_results.csv'
     ]
     for path in paths:
         try:
-            if os.path.exists(path):
-                return pd.read_csv(path)
-        except:
+            path_str = str(path)
+            if os.path.exists(path_str):
+                df = pd.read_csv(path_str)
+                # Validate required columns exist
+                df.columns = df.columns.str.lower().str.strip()
+                if 'mae_nm' in df.columns or 'mae' in df.columns:
+                    return df
+        except Exception:
             continue
     return None
 
@@ -932,10 +939,15 @@ with tab3:
 
     df = load_doe_data()
 
-    if df is not None:
-        df.columns = df.columns.str.lower().str.strip()
+    if df is not None and not df.empty:
+        # Columns already normalized in load_doe_data()
         mae_col = 'mae_nm' if 'mae_nm' in df.columns else 'mae'
         rmse_col = 'rmse_nm' if 'rmse_nm' in df.columns else 'rmse'
+
+        # Verify mae column exists before proceeding
+        if mae_col not in df.columns:
+            st.error(f"DOE data missing required column. Found: {list(df.columns)}")
+            st.stop()
 
         # Find optimal configuration
         best_idx = df[mae_col].idxmin()
