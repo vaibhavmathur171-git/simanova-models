@@ -377,6 +377,24 @@ def load_doe_data():
             continue
     return None
 
+@st.cache_data
+def load_scalers():
+    """Load scaler parameters for model inference"""
+    import json
+    paths = [
+        SCRIPT_DIR / 'models' / 'p2_scalers.json',
+        Path.cwd() / 'models' / 'p2_scalers.json',
+        'models/p2_scalers.json',
+    ]
+    for path in paths:
+        try:
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    return json.load(f)
+        except:
+            continue
+    return None
+
 @st.cache_resource
 def load_model():
     """Load trained ResNet with caching - returns (model, status_msg)"""
@@ -399,6 +417,9 @@ def load_model():
             continue
 
     return None, "Model file not found"
+
+# Training material IDs (must match training script)
+TRAINING_MATERIAL_IDS = {"BK7": 0, "HIGH_INDEX": 1}
 
 def get_image_path(filename):
     """Get image path with fallback locations"""
@@ -659,15 +680,29 @@ with tab2:
     weighted_penalty = 0.2*penalty_blue + 0.6*penalty_green + 0.2*penalty_red
 
     # Compute surrogate prediction
-    if model is not None:
-        # Material encoding (simple: use index in list)
-        material_id = list(GLASS_LIBRARY.keys()).index(glass_type)
-        input_tensor = torch.tensor([[target_angle, material_id]], dtype=torch.float32)
-        with torch.no_grad():
-            surrogate_pitch = model(input_tensor).item()
-        model_active = True
-        st.sidebar.success("Model Loaded")
-        st.sidebar.caption("SpectralResNet with 4 residual blocks")
+    scalers = load_scalers()
+    if model is not None and scalers is not None:
+        # Map glass type to training material ID (BK7=0 supported)
+        # For materials not in training, use analytical fallback
+        if glass_type == "BK7":
+            material_id = 0
+            # Scale inputs: X_scaled = (X - mean) / scale
+            angle_scaled = (target_angle - scalers["scaler_X_mean"][0]) / scalers["scaler_X_scale"][0]
+            mat_scaled = (material_id - scalers["scaler_X_mean"][1]) / scalers["scaler_X_scale"][1]
+            input_tensor = torch.tensor([[angle_scaled, mat_scaled]], dtype=torch.float32)
+            with torch.no_grad():
+                pred_scaled = model(input_tensor).item()
+            # Unscale output: pitch = pred * scale + mean
+            surrogate_pitch = pred_scaled * scalers["scaler_y_scale"] + scalers["scaler_y_mean"]
+            model_active = True
+            st.sidebar.success("Model Active")
+            st.sidebar.caption("SpectralResNet (BK7 trained)")
+        else:
+            # Analytical fallback for non-trained materials
+            surrogate_pitch = optimal_pitch
+            model_active = False
+            st.sidebar.info("Analytical Mode")
+            st.sidebar.caption(f"{glass_type} not in training set")
     else:
         surrogate_pitch = optimal_pitch  # Fallback to analytical
         model_active = False
