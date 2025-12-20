@@ -709,13 +709,12 @@ with tab2:
                        annotation_position="right",
                        annotation_font=dict(color='#4ECDC4', size=10))
 
-    fig_spec.update_layout(
-        **get_plotly_layout(height=350),
-        xaxis_title='Wavelength (nm)',
-        yaxis_title='Angular Deviation from Target (deg)',
-        showlegend=True,
-        legend=dict(x=0.02, y=0.98)
-    )
+    layout = get_plotly_layout(height=350)
+    layout['xaxis_title'] = 'Wavelength (nm)'
+    layout['yaxis_title'] = 'Angular Deviation from Target (deg)'
+    layout['showlegend'] = True
+    layout['legend'] = dict(x=0.02, y=0.98, bgcolor='rgba(26, 26, 46, 0.9)', font=dict(color='#FFFFFF'))
+    fig_spec.update_layout(**layout)
 
     st.plotly_chart(fig_spec, use_container_width=True, config=PLOTLY_CONFIG)
 
@@ -807,12 +806,11 @@ with tab3:
             name='Selected', showlegend=True
         ))
 
-        fig_learn.update_layout(
-            **get_plotly_layout(height=300),
-            xaxis_title='Epochs',
-            yaxis_title='MAE (nm)',
-            legend=dict(x=0.6, y=0.95, font=dict(size=9))
-        )
+        layout1 = get_plotly_layout(height=300)
+        layout1['xaxis_title'] = 'Epochs'
+        layout1['yaxis_title'] = 'MAE (nm)'
+        layout1['legend'] = dict(x=0.6, y=0.95, font=dict(size=9), bgcolor='rgba(26,26,46,0.9)')
+        fig_learn.update_layout(**layout1)
         st.plotly_chart(fig_learn, use_container_width=True, config=PLOTLY_CONFIG)
 
     # -------------------------------------------------------------------------
@@ -839,12 +837,11 @@ with tab3:
             name='Best (10K)', showlegend=True
         ))
 
-        fig_cap.update_layout(
-            **get_plotly_layout(height=300),
-            xaxis_title='Dataset Size',
-            yaxis_title='MAE (nm)',
-            legend=dict(x=0.5, y=0.95, font=dict(size=9))
-        )
+        layout2 = get_plotly_layout(height=300)
+        layout2['xaxis_title'] = 'Dataset Size'
+        layout2['yaxis_title'] = 'MAE (nm)'
+        layout2['legend'] = dict(x=0.5, y=0.95, font=dict(size=9), bgcolor='rgba(26,26,46,0.9)')
+        fig_cap.update_layout(**layout2)
         st.plotly_chart(fig_cap, use_container_width=True, config=PLOTLY_CONFIG)
 
     # -------------------------------------------------------------------------
