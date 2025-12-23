@@ -15,7 +15,7 @@ SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 # =============================================================================
 st.set_page_config(
     page_title="Simanova | Physics-AI Sprint",
-    page_icon="🧠",
+    page_icon="AI",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -244,8 +244,8 @@ st.markdown("""
 <div class="manifesto-box">
     <p class="manifesto-text">
         A proof-of-concept applying the <strong>Universal Approximation Theorem</strong> to real-world physics simulation.
-        Each engine is a <strong>differentiable neural surrogate</strong>—trained on high-fidelity simulation data—capable of
-        replacing months of analytical derivation across <strong>AR/VR · Photonics · MEMS · CFD · Aerodynamics</strong>.
+        Each engine is a <strong>differentiable neural surrogate</strong>-trained on high-fidelity simulation data-capable of
+        replacing months of analytical derivation across <strong>AR/VR | Photonics | MEMS | CFD | Aerodynamics</strong>.
         The thesis: learned representations will surpass hand-crafted physics models in speed, accuracy, and generalization.
     </p>
 </div>

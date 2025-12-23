@@ -18,7 +18,7 @@ from pathlib import Path
 # =============================================================================
 st.set_page_config(
     page_title="P1: Inverse Waveguide Grating Design",
-    page_icon="🔬",
+    page_icon="P1",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -464,7 +464,7 @@ st.markdown("""
 st.markdown("""
 <p class="project-desc">
     This engine demonstrates <strong>inverse design</strong> for AR waveguide gratings using neural networks.
-    Given a target diffraction angle, the model predicts the required grating period (Λ) in milliseconds—bypassing
+    Given a target diffraction angle, the model predicts the required grating period (L) in milliseconds-bypassing
     expensive iterative RCWA simulations. A <strong>Design of Experiments (DOE)</strong> sweep identifies optimal
     neural architecture parameters for sub-nanometer accuracy.
 </p>
@@ -486,7 +486,7 @@ st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 _, eq_col, _ = st.columns([1, 2, 1])
 with eq_col:
     st.latex(r"n_{out} \sin(\theta_m) = n_{in} \sin(\theta_{in}) + \frac{m \lambda}{\Lambda}")
-    st.markdown('<p style="color: #a0aec0; font-size: 0.8rem; text-align: center;">Λ = grating period, λ = wavelength, m = diffraction order</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #a0aec0; font-size: 0.8rem; text-align: center;">L = grating period, lambda = wavelength, m = diffraction order</p>', unsafe_allow_html=True)
 
 st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
@@ -520,8 +520,8 @@ with tab1:
             <span class="method-number">1</span>
             <span class="method-title">Parametric Design Space</span>
             <p class="method-desc">
-                <strong>Pitch Range:</strong> 300–600 nm<br>
-                <strong>Wavelength:</strong> λ = 532 nm<br>
+                <strong>Pitch Range:</strong> 300-600 nm<br>
+                <strong>Wavelength:</strong> lambda = 532 nm<br>
                 <strong>Refractive Index:</strong> n<sub>out</sub> = 1.5
             </p>
         </div>
@@ -544,8 +544,8 @@ with tab1:
             <span class="method-number">3</span>
             <span class="method-title">Data Inversion</span>
             <p class="method-desc">
-                <strong>Forward:</strong> f(Λ) → θ<sub>out</sub><br>
-                <strong>Inverse:</strong> f<sup>-1</sup>(θ<sub>target</sub>) → Λ<br>
+                <strong>Forward:</strong> f(L) -> theta<sub>out</sub><br>
+                <strong>Inverse:</strong> f<sup>-1</sup>(theta<sub>target</sub>) -> L<br>
                 Neural surrogate learns inverse mapping directly.
             </p>
         </div>
@@ -556,7 +556,7 @@ with tab1:
             <span class="method-number">4</span>
             <span class="method-title">Stochastic Perturbation</span>
             <p class="method-desc">
-                Gaussian noise (σ = 0.5°) injected into training inputs simulates
+                Gaussian noise (sigma = 0.5 deg) injected into training inputs simulates
                 <strong>manufacturing tolerances</strong> and metrology uncertainty.
             </p>
         </div>
@@ -581,7 +581,7 @@ with tab2:
 
     # Sidebar - Navigation and inputs
     st.sidebar.markdown("### Navigation")
-    if st.sidebar.button("← Back to Home", use_container_width=True):
+    if st.sidebar.button("<- Back to Home", use_container_width=True):
         st.switch_page("Home.py")
 
     st.sidebar.markdown("---")
@@ -633,7 +633,7 @@ with tab2:
         st.markdown(f"""
         <div class="metric-card">
             <p class="metric-card-label">Target Angle</p>
-            <p class="metric-card-value">{target_angle:.1f}°</p>
+            <p class="metric-card-value">{target_angle:.1f} deg</p>
             <span class="metric-card-delta delta-neutral">Input Query</span>
         </div>
         """, unsafe_allow_html=True)
@@ -721,7 +721,7 @@ with tab2:
         mode='markers+text',
         name='Query Point',
         marker=dict(color='#00FFFF', size=16, line=dict(color='white', width=2)),
-        text=[f"({target_angle:.1f}°, {analytical_period:.1f}nm)"],
+        text=[f"({target_angle:.1f} deg, {analytical_period:.1f}nm)"],
         textposition="top center",
         textfont=dict(color='#00FFFF', size=11)
     ))
@@ -981,7 +981,7 @@ with tab3:
                 <strong style="color: #2ecc71;">Optimization Result:</strong><br>
                 After testing <strong>{len(df)} configurations</strong>, the optimal neural surrogate uses <strong>{best_layers} hidden layers</strong>,
                 trained on <strong>{best_samples:,} samples</strong> for <strong>{best_epochs} epochs</strong>, achieving a
-                <strong style="color: #2ecc71;">{best_mae:.3f} nm MAE</strong> — sufficient for sub-nanometer precision in inverse waveguide design.
+                <strong style="color: #2ecc71;">{best_mae:.3f} nm MAE</strong> - sufficient for sub-nanometer precision in inverse waveguide design.
             </p>
         </div>
         """, unsafe_allow_html=True)
