@@ -741,7 +741,7 @@ with tab2:
     wavelengths = np.linspace(400, 700, 100)
     deviations = []
     for lam in wavelengths:
-        n = sellmeier_n(lam, glass_type)
+        n = sellmeier_n(lam, coeffs)
         ang = diffraction_angle(analytical_pitch, lam, n)
         deviations.append(ang - target_angle)
 
