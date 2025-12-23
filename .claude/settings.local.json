@@ -24,7 +24,17 @@
       "Bash(move pages02_P2_Rainbow_Surrogate.py _staging )",
       "Bash(move pages03_P3_Waveguide_Uniformity.py _staging )",
       "Bash(move pages04_P4_Thermal_PINN.py _staging)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(ls:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 10 streamlit run:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 15 streamlit run:*)",
+      "WebFetch(domain:simanova-models.streamlit.app)",
+      "mcp__ide__executeCode",
+      "Bash(cat:*)",
+      "Bash(timeout 20 python:*)",
+      "Bash(pip freeze:*)"
     ]
   }
 }

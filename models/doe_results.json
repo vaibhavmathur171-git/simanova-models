@@ -1,0 +1,110 @@
+[
+  {
+    "experiment_num": 1,
+    "config": {
+      "hidden_dim": 32,
+      "num_residual_blocks": 2
+    },
+    "hidden_dim": 32,
+    "num_residual_blocks": 2,
+    "val_loss": 0.001018174498854205,
+    "n_parameters": 4769,
+    "train_time_s": 55.43930530548096
+  },
+  {
+    "experiment_num": 2,
+    "config": {
+      "hidden_dim": 32,
+      "num_residual_blocks": 4
+    },
+    "hidden_dim": 32,
+    "num_residual_blocks": 4,
+    "val_loss": 0.0013790384653955697,
+    "n_parameters": 9249,
+    "train_time_s": 84.00276160240173
+  },
+  {
+    "experiment_num": 3,
+    "config": {
+      "hidden_dim": 32,
+      "num_residual_blocks": 6
+    },
+    "hidden_dim": 32,
+    "num_residual_blocks": 6,
+    "val_loss": 0.0008625495820306241,
+    "n_parameters": 13729,
+    "train_time_s": 119.98351454734802
+  },
+  {
+    "experiment_num": 4,
+    "config": {
+      "hidden_dim": 64,
+      "num_residual_blocks": 2
+    },
+    "hidden_dim": 64,
+    "num_residual_blocks": 2,
+    "val_loss": 0.000833978105802089,
+    "n_parameters": 17729,
+    "train_time_s": 80.09817957878113
+  },
+  {
+    "experiment_num": 5,
+    "config": {
+      "hidden_dim": 64,
+      "num_residual_blocks": 4
+    },
+    "hidden_dim": 64,
+    "num_residual_blocks": 4,
+    "val_loss": 0.0008346814967691898,
+    "n_parameters": 34881,
+    "train_time_s": 102.89884090423584
+  },
+  {
+    "experiment_num": 6,
+    "config": {
+      "hidden_dim": 64,
+      "num_residual_blocks": 6
+    },
+    "hidden_dim": 64,
+    "num_residual_blocks": 6,
+    "val_loss": 0.0010599214646965266,
+    "n_parameters": 52033,
+    "train_time_s": 131.41551685333252
+  },
+  {
+    "experiment_num": 7,
+    "config": {
+      "hidden_dim": 128,
+      "num_residual_blocks": 2
+    },
+    "hidden_dim": 128,
+    "num_residual_blocks": 2,
+    "val_loss": 0.000700661400007084,
+    "n_parameters": 68225,
+    "train_time_s": 84.89550685882568
+  },
+  {
+    "experiment_num": 8,
+    "config": {
+      "hidden_dim": 128,
+      "num_residual_blocks": 4
+    },
+    "hidden_dim": 128,
+    "num_residual_blocks": 4,
+    "val_loss": 0.000762890389142558,
+    "n_parameters": 135297,
+    "train_time_s": 131.50646829605103
+  },
+  {
+    "experiment_num": 9,
+    "config": {
+      "hidden_dim": 128,
+      "num_residual_blocks": 6
+    },
+    "hidden_dim": 128,
+    "num_residual_blocks": 6,
+    "val_loss": 0.0007653466822579503,
+    "n_parameters": 202369,
+    "train_time_s": 179.79597449302673
+  }
+]

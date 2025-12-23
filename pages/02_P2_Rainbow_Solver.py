@@ -13,13 +13,25 @@ import os
 import json
 import time
 from pathlib import Path
+from typing import Dict
+from p2_model import RainbowResNet6
+from p2_physics import (
+    GLASS_LIBRARY,
+    SellmeierCoefficients,
+    angle_from_pitch,
+    chromatic_penalty,
+    glass_coeffs,
+    grating_pitch_from_angle,
+    optimize_pitch,
+    sellmeier_n,
+)
 
 # =============================================================================
 # PAGE CONFIGURATION
 # =============================================================================
 st.set_page_config(
     page_title="P2: Rainbow Solver",
-    page_icon="🌈",
+    page_icon="P2",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -109,58 +121,52 @@ class SpectralResNet(nn.Module):
 # =============================================================================
 # PHYSICS CONSTANTS & FUNCTIONS
 # =============================================================================
-GLASS_LIBRARY = {
-    "BK7": {"B1": 1.03961212, "B2": 0.231792344, "B3": 1.01046945,
-            "C1": 0.00600069867, "C2": 0.0200179144, "C3": 103.560653},
-    "SF11": {"B1": 1.73759695, "B2": 0.313747346, "B3": 1.89878101,
-             "C1": 0.013188707, "C2": 0.0623068142, "C3": 155.23629},
-    "Fused Silica": {"B1": 0.6961663, "B2": 0.4079426, "B3": 0.8974794,
-                     "C1": 0.0046791, "C2": 0.0135121, "C3": 97.934003},
-}
-
 # Photopic weighting (human eye sensitivity)
 W_GREEN, W_RED, W_BLUE = 0.6, 0.2, 0.2
 LAMBDA_BLUE, LAMBDA_GREEN, LAMBDA_RED = 450, 532, 635
 
-def sellmeier_n(lambda_nm, glass="BK7"):
-    """Calculate refractive index using Sellmeier equation: n²(λ)-1 = Σ[Bᵢλ²/(λ²-Cᵢ)]"""
-    c = GLASS_LIBRARY.get(glass, GLASS_LIBRARY["BK7"])
-    L = lambda_nm / 1000.0  # Convert to micrometers
-    L2 = L ** 2
-    n2 = 1 + (c["B1"]*L2)/(L2-c["C1"]) + (c["B2"]*L2)/(L2-c["C2"]) + (c["B3"]*L2)/(L2-c["C3"])
-    return np.sqrt(n2)
+GLASS_OPTIONS = list(GLASS_LIBRARY.keys()) + ["Custom"]
+
+
+def resolve_coeffs(glass_name: str, custom_coeffs: Dict[str, float]) -> SellmeierCoefficients:
+    if glass_name == "Custom":
+        return SellmeierCoefficients(
+            B1=custom_coeffs["B1"],
+            B2=custom_coeffs["B2"],
+            B3=custom_coeffs["B3"],
+            C1=custom_coeffs["C1"],
+            C2=custom_coeffs["C2"],
+            C3=custom_coeffs["C3"],
+        )
+    return glass_coeffs(glass_name)
+
 
 def grating_pitch(angle_deg, lambda_nm, n_out, m=-1):
-    """Grating equation: Λ = mλ/(n·sin(θ))"""
-    theta = np.radians(angle_deg)
-    sin_t = np.sin(theta)
-    if abs(sin_t) < 1e-10:
-        sin_t = 1e-10
-    return abs((m * lambda_nm) / (n_out * sin_t))
+    return grating_pitch_from_angle(angle_deg, lambda_nm, n_out, order=m)
+
 
 def diffraction_angle(pitch_nm, lambda_nm, n_out, m=-1):
-    """Inverse grating equation: θ = arcsin(mλ/(n·Λ))"""
-    sin_t = (m * lambda_nm) / (n_out * pitch_nm)
-    sin_t = np.clip(sin_t, -1.0, 1.0)
-    return np.degrees(np.arcsin(sin_t))
+    return angle_from_pitch(pitch_nm, lambda_nm, n_out, order=m)
 
-def compute_chromatic_penalty(pitch_nm, target_angle, glass="BK7"):
-    """Compute photopic-weighted chromatic angular deviation"""
-    n_b = sellmeier_n(LAMBDA_BLUE, glass)
-    n_g = sellmeier_n(LAMBDA_GREEN, glass)
-    n_r = sellmeier_n(LAMBDA_RED, glass)
 
-    angle_b = diffraction_angle(pitch_nm, LAMBDA_BLUE, n_b)
-    angle_g = diffraction_angle(pitch_nm, LAMBDA_GREEN, n_g)
-    angle_r = diffraction_angle(pitch_nm, LAMBDA_RED, n_r)
-
-    # Photopic-weighted penalty
-    penalty = W_BLUE * abs(angle_b - target_angle) + \
-              W_GREEN * abs(angle_g - target_angle) + \
-              W_RED * abs(angle_r - target_angle)
-
-    return penalty, angle_b, angle_g, angle_r
-
+def compute_chromatic_penalty(pitch_nm, target_angle, coeffs):
+    n_b = sellmeier_n(LAMBDA_BLUE, coeffs)
+    n_g = sellmeier_n(LAMBDA_GREEN, coeffs)
+    n_r = sellmeier_n(LAMBDA_RED, coeffs)
+    return chromatic_penalty(
+        pitch_nm,
+        target_angle,
+        n_b,
+        n_g,
+        n_r,
+        lambda_blue=LAMBDA_BLUE,
+        lambda_green=LAMBDA_GREEN,
+        lambda_red=LAMBDA_RED,
+        weight_blue=W_BLUE,
+        weight_green=W_GREEN,
+        weight_red=W_RED,
+        order=-1,
+    )
 # =============================================================================
 # DEFAULT SCALERS (from actual training run)
 # =============================================================================
@@ -193,29 +199,40 @@ def load_scalers():
 
 @st.cache_resource
 def load_model():
-    """Load trained ResNet with graceful degradation to random-init fallback"""
-    paths = [
-        SCRIPT_DIR / 'models' / 'p2_rainbow_model.pth',
-        Path.cwd() / 'models' / 'p2_rainbow_model.pth',
-        'models/p2_rainbow_model.pth',
+    """Load trained model with analytical fallback."""
+    candidates = [
+        ("resnet6", SCRIPT_DIR / "models" / "p2_resnet6_physics.pth"),
+        ("resnet6", Path.cwd() / "models" / "p2_resnet6_physics.pth"),
+        ("resnet6", "models/p2_resnet6_physics.pth"),
+        ("resnet4", SCRIPT_DIR / "models" / "p2_rainbow_model.pth"),
+        ("resnet4", Path.cwd() / "models" / "p2_rainbow_model.pth"),
+        ("resnet4", "models/p2_rainbow_model.pth"),
     ]
 
-    for path in paths:
+    for model_kind, path in candidates:
         try:
             path_str = str(path)
             if os.path.exists(path_str):
-                model = SpectralResNet(input_dim=2, hidden_dim=128, num_blocks=4)
-                state_dict = torch.load(path_str, map_location=torch.device('cpu'))
-                model.load_state_dict(state_dict)
+                if model_kind == "resnet6":
+                    checkpoint = torch.load(path_str, map_location=torch.device("cpu"))
+                    config = checkpoint.get("config", {})
+                    model = RainbowResNet6(
+                        input_dim=config.get("input_dim", 5),
+                        hidden_dim=config.get("hidden_dim", 128),
+                        num_blocks=config.get("num_blocks", 6),
+                    )
+                    model.load_state_dict(checkpoint["state_dict"])
+                else:
+                    model = SpectralResNet(input_dim=2, hidden_dim=128, num_blocks=4)
+                    state_dict = torch.load(path_str, map_location=torch.device("cpu"))
+                    model.load_state_dict(state_dict)
+
                 model.eval()
-                return model, True, "Trained Model Active"
-        except Exception as e:
+                return model, True, f"Loaded {model_kind} model", model_kind
+        except Exception:
             continue
 
-    # GRACEFUL DEGRADATION: Return random-initialized model
-    model = SpectralResNet(input_dim=2, hidden_dim=128, num_blocks=4)
-    model.eval()
-    return model, False, "Random Initializer (Train MVP for accuracy)"
+    return None, False, "No trained model found (physics fallback active)", "none"
 
 @st.cache_data(ttl=300)
 def generate_doe_data():
@@ -239,6 +256,9 @@ def generate_doe_data():
 def load_doe_data():
     """Load DOE results with fallback to generated data"""
     paths = [
+        SCRIPT_DIR / 'data' / 'p2_resnet6_doe_results.csv',
+        Path.cwd() / 'data' / 'p2_resnet6_doe_results.csv',
+        'data/p2_resnet6_doe_results.csv',
         SCRIPT_DIR / 'data' / 'p2_doe_results.csv',
         SCRIPT_DIR / 'Data' / 'p2_doe_results.csv',
         Path.cwd() / 'data' / 'p2_doe_results.csv',
@@ -262,31 +282,35 @@ def load_doe_data():
 # =============================================================================
 # REAL-TIME INFERENCE ENGINE
 # =============================================================================
-def run_inference(model, scalers, target_angle, material_id=0):
-    """Execute real-time model.forward() with proper scaling - returns (pitch_nm, residual_nm, success)"""
+def run_inference(model, model_kind, scalers, target_angle, coeffs):
+    """Return (pitch_nm, residual_nm, success) from model inference."""
     if model is None:
         return None, None, False
 
     try:
-        # Scale inputs using trained scalers
-        angle_scaled = (target_angle - scalers["scaler_X_mean"][0]) / scalers["scaler_X_scale"][0]
-        mat_scaled = (material_id - scalers["scaler_X_mean"][1]) / scalers["scaler_X_scale"][1]
+        if model_kind == "resnet6":
+            n_b = sellmeier_n(LAMBDA_BLUE, coeffs)
+            n_g = sellmeier_n(LAMBDA_GREEN, coeffs)
+            n_r = sellmeier_n(LAMBDA_RED, coeffs)
+            features = torch.tensor(
+                [[target_angle, n_b, n_g, n_r, -1.0]],
+                dtype=torch.float32,
+            )
+            with torch.no_grad():
+                pitch_nm = float(model(features).item())
+        else:
+            angle_scaled = (target_angle - scalers["scaler_X_mean"][0]) / scalers["scaler_X_scale"][0]
+            mat_scaled = 0.0
+            input_tensor = torch.tensor([[angle_scaled, mat_scaled]], dtype=torch.float32)
+            with torch.no_grad():
+                pred_scaled = model(input_tensor).item()
+            pitch_nm = pred_scaled * scalers["scaler_y_scale"] + scalers["scaler_y_mean"]
 
-        # Create input tensor and run forward pass
-        input_tensor = torch.tensor([[angle_scaled, mat_scaled]], dtype=torch.float32)
-        with torch.no_grad():
-            pred_scaled = model(input_tensor).item()
-
-        # Unscale output
-        pitch_nm = pred_scaled * scalers["scaler_y_scale"] + scalers["scaler_y_mean"]
-
-        # Calculate analytical pitch for residual
-        n_green = sellmeier_n(LAMBDA_GREEN, "BK7")
+        n_green = sellmeier_n(LAMBDA_GREEN, coeffs)
         analytical = grating_pitch(target_angle, LAMBDA_GREEN, n_green)
         residual_nm = abs(pitch_nm - analytical)
-
         return pitch_nm, residual_nm, True
-    except Exception as e:
+    except Exception:
         return None, None, False
 
 # =============================================================================
@@ -299,33 +323,38 @@ def train_mvp_model(epochs=15, n_samples=8000):
     progress_bar = st.progress(0, text="Initializing MVP training...")
     status_text = st.empty()
 
-    # Generate synthetic training data
-    np.random.seed(42)
-    angles = np.random.uniform(-75, -25, n_samples).astype(np.float32)
-    materials = np.zeros(n_samples, dtype=np.float32)
+    rng = np.random.default_rng(42)
+    angles = rng.uniform(-75, -25, n_samples).astype(np.float32)
+    coeffs = glass_coeffs("N-BK7")
+    n_b = float(sellmeier_n(LAMBDA_BLUE, coeffs))
+    n_g = float(sellmeier_n(LAMBDA_GREEN, coeffs))
+    n_r = float(sellmeier_n(LAMBDA_RED, coeffs))
 
-    # Calculate ground truth pitches using physics
-    pitches = []
+    opt_pitches = []
     for ang in angles:
-        n_green = sellmeier_n(LAMBDA_GREEN, "BK7")
-        pitch = grating_pitch(ang, LAMBDA_GREEN, n_green)
-        pitches.append(pitch)
-    pitches = np.array(pitches, dtype=np.float32)
+        opt_pitch, _, _, _, _ = optimize_pitch(
+            float(ang), n_b, n_g, n_r,
+            lambda_blue=LAMBDA_BLUE,
+            lambda_green=LAMBDA_GREEN,
+            lambda_red=LAMBDA_RED,
+            weight_blue=W_BLUE,
+            weight_green=W_GREEN,
+            weight_red=W_RED,
+            order=-1,
+        )
+        opt_pitches.append(opt_pitch)
 
-    # Normalize data
-    X = np.column_stack([angles, materials])
-    X_mean, X_std = X.mean(axis=0), X.std(axis=0)
-    y_mean, y_std = pitches.mean(), pitches.std()
-    X_norm = (X - X_mean) / X_std
-    y_norm = (pitches - y_mean) / y_std
+    opt_pitches = np.array(opt_pitches, dtype=np.float32)
+    features = np.column_stack(
+        [angles, np.full_like(angles, n_b), np.full_like(angles, n_g), np.full_like(angles, n_r), -1.0]
+    ).astype(np.float32)
 
-    progress_bar.progress(10, text="Data generated (8,000 samples)...")
+    progress_bar.progress(10, text=f"Data generated ({n_samples:,} samples)...")
 
-    # Create model and dataloader
-    model = SpectralResNet(input_dim=2, hidden_dim=128, num_blocks=4)
+    model = RainbowResNet6(input_dim=5, hidden_dim=128, num_blocks=6)
     dataset = TensorDataset(
-        torch.tensor(X_norm, dtype=torch.float32),
-        torch.tensor(y_norm.reshape(-1, 1), dtype=torch.float32)
+        torch.tensor(features, dtype=torch.float32),
+        torch.tensor(opt_pitches.reshape(-1, 1), dtype=torch.float32),
     )
     loader = DataLoader(dataset, batch_size=64, shuffle=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -352,17 +381,16 @@ def train_mvp_model(epochs=15, n_samples=8000):
     try:
         model_dir = SCRIPT_DIR / 'models'
         model_dir.mkdir(exist_ok=True)
-        torch.save(model.state_dict(), model_dir / 'p2_rainbow_model.pth')
+        torch.save(
+            {
+                "state_dict": model.state_dict(),
+                "config": {"input_dim": 5, "hidden_dim": 128, "num_blocks": 6},
+                "normalizer": None,
+            },
+            model_dir / 'p2_resnet6_physics.pth'
+        )
 
-        scalers = {
-            "scaler_X_mean": X_mean.tolist(),
-            "scaler_X_scale": X_std.tolist(),
-            "scaler_y_mean": float(y_mean),
-            "scaler_y_scale": float(y_std)
-        }
-        with open(model_dir / 'p2_scalers.json', 'w') as f:
-            json.dump(scalers, f, indent=2)
-
+        scalers = {}
         progress_bar.progress(100, text="MVP model trained and saved!")
     except:
         progress_bar.progress(100, text="MVP model trained (save skipped on cloud)")
@@ -427,7 +455,7 @@ st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 # =============================================================================
 # LOAD RESOURCES
 # =============================================================================
-model, model_trained, model_status = load_model()
+model, model_trained, model_status, model_kind = load_model()
 scalers, scalers_loaded = load_scalers()
 
 # =============================================================================
@@ -489,24 +517,45 @@ with tab2:
 
     # Sidebar controls
     st.sidebar.markdown("### Navigation")
-    if st.sidebar.button("← Back to Home", use_container_width=True):
+    if st.sidebar.button("Back to Home", use_container_width=True):
         st.switch_page("Home.py")
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Design Parameters")
 
-    target_angle = st.sidebar.slider("Target Diffraction Angle (deg)", -75.0, -25.0, -50.0, 0.5,
-                                      help="Target angle for Green (532nm) channel")
-    glass_type = st.sidebar.selectbox("Glass Material", list(GLASS_LIBRARY.keys()), index=0)
+    target_angle = st.sidebar.slider(
+        "Target Diffraction Angle (deg)", -75.0, -25.0, -50.0, 0.5,
+        help="Target angle for Green (532nm) channel"
+    )
+    glass_type = st.sidebar.selectbox("Glass Material", GLASS_OPTIONS, index=0)
+
+    default_coeffs = glass_coeffs("N-BK7")
+    custom_coeffs = {
+        "B1": default_coeffs.B1,
+        "B2": default_coeffs.B2,
+        "B3": default_coeffs.B3,
+        "C1": default_coeffs.C1,
+        "C2": default_coeffs.C2,
+        "C3": default_coeffs.C3,
+    }
+
+    if glass_type == "Custom":
+        st.sidebar.markdown("#### Custom Sellmeier Coefficients")
+        custom_coeffs["B1"] = st.sidebar.number_input("B1", value=custom_coeffs["B1"], format="%.9f")
+        custom_coeffs["B2"] = st.sidebar.number_input("B2", value=custom_coeffs["B2"], format="%.9f")
+        custom_coeffs["B3"] = st.sidebar.number_input("B3", value=custom_coeffs["B3"], format="%.9f")
+        custom_coeffs["C1"] = st.sidebar.number_input("C1 (um^2)", value=custom_coeffs["C1"], format="%.9f")
+        custom_coeffs["C2"] = st.sidebar.number_input("C2 (um^2)", value=custom_coeffs["C2"], format="%.9f")
+        custom_coeffs["C3"] = st.sidebar.number_input("C3 (um^2)", value=custom_coeffs["C3"], format="%.9f")
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Model Status")
 
     if not model_trained:
         st.sidebar.warning(model_status)
-        if st.sidebar.button("🚀 Train MVP Model", use_container_width=True,
+        if st.sidebar.button("Train MVP Model", use_container_width=True,
                             help="Quick 15-epoch training sprint"):
-            model, scalers = train_mvp_model(epochs=15, n_samples=8000)
+            model, scalers = train_mvp_model(epochs=10, n_samples=2000)
             model_trained = True
             st.sidebar.success("MVP Model Ready!")
             st.rerun()
@@ -517,26 +566,44 @@ with tab2:
     # REAL-TIME INFERENCE (linked to slider)
     # =========================================================================
 
+    coeffs = resolve_coeffs(glass_type, custom_coeffs)
+
     # Analytical solution (always available)
-    n_green = sellmeier_n(LAMBDA_GREEN, glass_type)
+    n_green = sellmeier_n(LAMBDA_GREEN, coeffs)
     analytical_pitch = grating_pitch(target_angle, LAMBDA_GREEN, n_green)
 
+    # Physics-optimized fallback (deterministic)
+    opt_pitch, _, _, _, _ = optimize_pitch(
+        target_angle,
+        float(sellmeier_n(LAMBDA_BLUE, coeffs)),
+        float(sellmeier_n(LAMBDA_GREEN, coeffs)),
+        float(sellmeier_n(LAMBDA_RED, coeffs)),
+        lambda_blue=LAMBDA_BLUE,
+        lambda_green=LAMBDA_GREEN,
+        lambda_red=LAMBDA_RED,
+        weight_blue=W_BLUE,
+        weight_green=W_GREEN,
+        weight_red=W_RED,
+        order=-1,
+    )
+
     # Neural surrogate inference
-    material_id = 0 if glass_type == "BK7" else 1
-    neural_pitch, residual_nm, inference_ok = run_inference(model, scalers, target_angle, material_id)
+    neural_pitch, residual_nm, inference_ok = run_inference(
+        model, model_kind, scalers, target_angle, coeffs
+    )
 
     if not inference_ok or neural_pitch is None:
-        neural_pitch = analytical_pitch
-        residual_nm = 0.0
+        neural_pitch = opt_pitch
+        residual_nm = abs(neural_pitch - analytical_pitch)
         neural_active = False
     else:
         neural_active = True
 
     # Compute chromatic penalties for both solutions
     penalty_analytical, ang_b_ana, ang_g_ana, ang_r_ana = compute_chromatic_penalty(
-        analytical_pitch, target_angle, glass_type)
+        analytical_pitch, target_angle, coeffs)
     penalty_neural, ang_b_nn, ang_g_nn, ang_r_nn = compute_chromatic_penalty(
-        neural_pitch, target_angle, glass_type)
+        neural_pitch, target_angle, coeffs)
 
     # =========================================================================
     # METRICS DISPLAY (5 cards)
@@ -575,7 +642,7 @@ with tab2:
             <div class="metric-card">
                 <p class="metric-card-label">Neural Λ</p>
                 <p class="metric-card-value">--</p>
-                <span class="metric-card-delta delta-warning">Train MVP →</span>
+                <span class="metric-card-delta delta-warning">Train MVP</span>
             </div>
             """, unsafe_allow_html=True)
 
