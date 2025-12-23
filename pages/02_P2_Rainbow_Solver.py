@@ -476,17 +476,17 @@ with tab1:
         <div class="method-card">
             <span class="method-number">OBJ</span>
             <span class="method-title">The Chromatic Challenge</span>
-            <p class="method-desc">Design <strong>one grating pitch (Λ)</strong> that steers R/G/B light to approximately the same angle, despite material dispersion causing each wavelength to refract differently.</p>
+            <p class="method-desc">Design <strong>one grating pitch (L)</strong> that steers R/G/B light to approximately the same angle, despite material dispersion causing each wavelength to refract differently.</p>
         </div>
         <div class="method-card">
             <span class="method-number">1</span>
             <span class="method-title">Sellmeier Dispersion Model</span>
-            <p class="method-desc"><strong>Blue (450nm):</strong> n=1.525 → steeper diffraction<br><strong>Green (532nm):</strong> n=1.519 → baseline (0°)<br><strong>Red (635nm):</strong> n=1.515 → shallower diffraction</p>
+            <p class="method-desc"><strong>Blue (450nm):</strong> n=1.525 -> steeper diffraction<br><strong>Green (532nm):</strong> n=1.519 -> baseline (0 deg)<br><strong>Red (635nm):</strong> n=1.515 -> shallower diffraction</p>
         </div>
         <div class="method-card">
             <span class="method-number">2</span>
             <span class="method-title">Photopic-Weighted Loss</span>
-            <p class="method-desc">Human eye sensitivity peaks at green (555nm). We weight: <strong>W<sub>G</sub>=0.6</strong>, <strong>W<sub>R</sub>=0.2</strong>, <strong>W<sub>B</sub>=0.2</strong>. Green becomes the 0° baseline.</p>
+            <p class="method-desc">Human eye sensitivity peaks at green (555nm). We weight: <strong>W<sub>G</sub>=0.6</strong>, <strong>W<sub>R</sub>=0.2</strong>, <strong>W<sub>B</sub>=0.2</strong>. Green becomes the 0 deg baseline.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -500,7 +500,7 @@ with tab1:
         <div class="method-card">
             <span class="method-number">4</span>
             <span class="method-title">SpectralResNet Architecture</span>
-            <p class="method-desc"><strong>Input:</strong> [θ_target, material_id]<br><strong>Hidden:</strong> 128-dim × 4 ResBlocks<br><strong>Output:</strong> Λ_optimal (nm)</p>
+            <p class="method-desc"><strong>Input:</strong> [theta_target, material_id]<br><strong>Hidden:</strong> 128-dim x 4 ResBlocks<br><strong>Output:</strong> L_optimal (nm)</p>
         </div>
         <div class="method-card">
             <span class="method-number">5</span>
@@ -614,7 +614,7 @@ with tab2:
         st.markdown(f"""
         <div class="metric-card">
             <p class="metric-card-label">Target Angle</p>
-            <p class="metric-card-value">{target_angle:.1f}°</p>
+            <p class="metric-card-value">{target_angle:.1f} deg</p>
             <span class="metric-card-delta delta-neutral">Green Baseline</span>
         </div>
         """, unsafe_allow_html=True)
@@ -622,7 +622,7 @@ with tab2:
     with c2:
         st.markdown(f"""
         <div class="metric-card">
-            <p class="metric-card-label">Analytical Λ</p>
+            <p class="metric-card-label">Analytical L</p>
             <p class="metric-card-value">{analytical_pitch:.2f}</p>
             <span class="metric-card-delta delta-neutral">nm (Grating Eq)</span>
         </div>
@@ -632,7 +632,7 @@ with tab2:
         if neural_active and model_trained:
             st.markdown(f"""
             <div class="metric-card">
-                <p class="metric-card-label">Neural Λ</p>
+                <p class="metric-card-label">Neural L</p>
                 <p class="metric-card-value">{neural_pitch:.2f}</p>
                 <span class="metric-card-delta delta-good">nm (ResNet)</span>
             </div>
@@ -640,7 +640,7 @@ with tab2:
         else:
             st.markdown(f"""
             <div class="metric-card">
-                <p class="metric-card-label">Neural Λ</p>
+                <p class="metric-card-label">Neural L</p>
                 <p class="metric-card-value">--</p>
                 <span class="metric-card-delta delta-warning">Train MVP</span>
             </div>
@@ -651,7 +651,7 @@ with tab2:
         <div class="metric-card">
             <p class="metric-card-label">Residual Error</p>
             <p class="metric-card-value">{residual_nm:.4f}</p>
-            <span class="metric-card-delta delta-good">nm (sub-Å)</span>
+            <span class="metric-card-delta delta-good">nm (sub-A)</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -659,7 +659,7 @@ with tab2:
         st.markdown(f"""
         <div class="metric-card">
             <p class="metric-card-label">Rainbow Penalty</p>
-            <p class="metric-card-value">{penalty_analytical:.3f}°</p>
+            <p class="metric-card-value">{penalty_analytical:.3f} deg</p>
             <span class="metric-card-delta delta-neutral">Photopic Wt.</span>
         </div>
         """, unsafe_allow_html=True)
@@ -695,8 +695,8 @@ with tab2:
             fig_opt.add_trace(go.Scatter(x=[0, x_end], y=[-0.75, 0.6], mode='lines',
                               line=dict(color=color, width=6), name=name, opacity=0.85))
 
-        fig_opt.add_annotation(x=0, y=0.85, text="👁 Tight RGB Convergence", font=dict(color='#2ecc71', size=11), showarrow=False)
-        fig_opt.add_annotation(x=0, y=-1.0, text=f"Λ = {analytical_pitch:.1f} nm", font=dict(color='#4ECDC4', size=10), showarrow=False)
+        fig_opt.add_annotation(x=0, y=0.85, text="[eye] Tight RGB Convergence", font=dict(color='#2ecc71', size=11), showarrow=False)
+        fig_opt.add_annotation(x=0, y=-1.0, text=f"L = {analytical_pitch:.1f} nm", font=dict(color='#4ECDC4', size=10), showarrow=False)
 
         fig_opt.update_layout(template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117',
                               height=300, showlegend=False,
@@ -723,7 +723,7 @@ with tab2:
             fig_uncorr.add_trace(go.Scatter(x=[0, offset], y=[-0.75, 0.6], mode='lines',
                                   line=dict(color=color, width=6), name=name, opacity=0.85))
 
-        fig_uncorr.add_annotation(x=0, y=0.85, text="🌈 Rainbow Fringing", font=dict(color='#FF6B6B', size=11), showarrow=False)
+        fig_uncorr.add_annotation(x=0, y=0.85, text="[rainbow] Rainbow Fringing", font=dict(color='#FF6B6B', size=11), showarrow=False)
         fig_uncorr.add_annotation(x=0, y=-1.0, text="No Optimization", font=dict(color='#666', size=10), showarrow=False)
 
         fig_uncorr.update_layout(template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117',
@@ -764,7 +764,7 @@ with tab2:
         x=rgb_wavelengths, y=rgb_deviations,
         mode='markers+text',
         marker=dict(size=14, color=rgb_colors, line=dict(width=2, color='white')),
-        text=['B', 'G (0°)', 'R'],
+        text=['B', 'G (0 deg)', 'R'],
         textposition='top center',
         textfont=dict(color='white', size=10),
         name='RGB Channels'
@@ -772,7 +772,7 @@ with tab2:
 
     # Zero line (Green baseline)
     fig_spec.add_hline(y=0, line_dash="dash", line_color="#4ECDC4", opacity=0.7,
-                       annotation_text="Green = 0° (Photopic Baseline)",
+                       annotation_text="Green = 0 deg (Photopic Baseline)",
                        annotation_position="right",
                        annotation_font=dict(color='#4ECDC4', size=10))
 
@@ -790,10 +790,10 @@ with tab2:
     <div style="background: rgba(78, 205, 196, 0.1); border: 1px solid #4ECDC4; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
         <p style="color: #FFFFFF; margin: 0; font-size: 0.9rem;">
             <strong style="color: #4ECDC4;">Physics Insight:</strong>
-            The pitch Λ={analytical_pitch:.1f}nm is optimized for Green (532nm) as the 0° baseline because
+            The pitch L={analytical_pitch:.1f}nm is optimized for Green (532nm) as the 0 deg baseline because
             <strong>human photopic vision</strong> is most sensitive at ~555nm. Blue deviates by
-            <strong>{abs(ang_b_ana - target_angle):.3f}°</strong> and Red by
-            <strong>{abs(ang_r_ana - target_angle):.3f}°</strong> due to Sellmeier dispersion (n_blue > n_green > n_red).
+            <strong>{abs(ang_b_ana - target_angle):.3f} deg</strong> and Red by
+            <strong>{abs(ang_r_ana - target_angle):.3f} deg</strong> due to Sellmeier dispersion (n_blue > n_green > n_red).
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -807,7 +807,7 @@ with tab3:
     df, data_source = load_doe_data()
 
     if data_source == "generated":
-        st.info("📊 Displaying synthetic DOE results for demonstration")
+        st.info("[chart] Displaying synthetic DOE results for demonstration")
 
     mae_col = 'mae_nm' if 'mae_nm' in df.columns else 'mae'
 
@@ -973,12 +973,12 @@ with tab3:
     st.markdown(f"""
     <div style="background: rgba(46, 204, 113, 0.1); border: 1px solid #2ecc71; border-radius: 12px; padding: 1.5rem;">
         <p style="color: #FFFFFF; margin: 0; font-size: 1rem;">
-            <strong style="color: #2ecc71;">DOE Result:</strong> {len(df)} configurations tested →
+            <strong style="color: #2ecc71;">DOE Result:</strong> {len(df)} configurations tested ->
             <strong>{best_blocks} ResBlocks</strong> @ LR={best_lr:.0e} trained for {best_epochs} epochs achieves
             <strong style="color: #2ecc71;">{best_mae:.4f} nm MAE</strong> (sub-angstrom precision).
         </p>
         <p style="color: #a0aec0; margin: 0.5rem 0 0 0; font-size: 0.85rem;">
-            Key insight: 4 blocks is the sweet spot — fewer blocks underfit, more blocks show diminishing returns and risk overfitting.
+            Key insight: 4 blocks is the sweet spot - fewer blocks underfit, more blocks show diminishing returns and risk overfitting.
         </p>
     </div>
     """, unsafe_allow_html=True)
