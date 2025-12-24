@@ -17,146 +17,207 @@ import json
 import time
 
 # =============================================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # =============================================================================
 st.set_page_config(
-    page_title="P4 | MEMS Oscilloscope",
-    page_icon="📟",
+    page_title="P4: MEMS Oscilloscope",
+    page_icon="P4",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # =============================================================================
-# OSCILLOSCOPE DARK MODE CSS
+# CUSTOM CSS - OSCILLOSCOPE DARK MODE
 # =============================================================================
 st.markdown("""
 <style>
-    /* Dark oscilloscope base */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
     .stApp {
         background: linear-gradient(180deg, #0a0a0a 0%, #0d1117 100%);
     }
 
-    /* Oscilloscope frame */
-    .scope-frame {
-        background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
-        border: 2px solid #2ecc71;
+    .stApp, .stApp p, .stApp span, .stApp label, .stApp div {
+        color: #FFFFFF !important;
+    }
+
+    [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
+        color: #FFFFFF !important;
+    }
+
+    .page-title {
+        font-size: 2.4rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.25rem;
+        text-align: center;
+        letter-spacing: -0.02em;
+    }
+
+    .page-subtitle {
+        font-size: 1.1rem;
+        color: #a0aec0 !important;
+        text-align: center;
+        margin-bottom: 1rem;
+        font-weight: 400;
+    }
+
+    .project-desc {
+        color: #c0c8d0 !important;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto 1.5rem auto;
+    }
+
+    .section-header {
+        color: #2ecc71 !important;
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #1a3a1a;
+    }
+
+    .subsection-header {
+        color: #FFFFFF !important;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem 0;
+    }
+
+    /* Method cards */
+    .method-card {
+        background: linear-gradient(145deg, #0d1a0d 0%, #0a120a 100%);
+        border: 1px solid #1a3a1a;
         border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 0 30px rgba(46, 204, 113, 0.15),
-                    inset 0 0 60px rgba(0, 0, 0, 0.5);
+        padding: 1.25rem;
+        margin: 0.75rem 0;
     }
 
-    /* Control panel */
-    .control-panel {
-        background: linear-gradient(145deg, #1a1a2e 0%, #0d0d15 100%);
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 1rem;
-    }
-
-    /* Metric display (LED style) */
-    .led-display {
-        background: #000;
-        border: 2px solid #333;
-        border-radius: 4px;
-        padding: 0.75rem 1rem;
-        font-family: 'Courier New', monospace;
-        text-align: center;
-    }
-
-    .led-value {
-        color: #2ecc71;
-        font-size: 1.8rem;
-        font-weight: bold;
-        text-shadow: 0 0 10px rgba(46, 204, 113, 0.8);
-    }
-
-    .led-label {
-        color: #666;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-    }
-
-    /* Warning LED */
-    .led-warning {
-        color: #f1c40f;
-        text-shadow: 0 0 10px rgba(241, 196, 15, 0.8);
-    }
-
-    /* Title styling */
-    .scope-title {
-        font-size: 2rem;
+    .method-number {
+        display: inline-block;
+        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        color: white !important;
         font-weight: 700;
-        color: #2ecc71;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        margin-right: 0.5rem;
+    }
+
+    .method-title {
+        color: #FFFFFF !important;
+        font-weight: 600;
+        display: inline;
+    }
+
+    .method-desc {
+        color: #c0c8d0 !important;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+        line-height: 1.6;
+    }
+
+    .method-desc strong {
+        color: #2ecc71 !important;
+    }
+
+    /* Metric cards */
+    .metric-card {
+        background: linear-gradient(145deg, #0d1a0d 0%, #0a120a 100%);
+        border: 2px solid #1a3a1a;
+        border-radius: 16px;
+        padding: 1.25rem;
         text-align: center;
-        text-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
-        letter-spacing: 0.1em;
+    }
+
+    .metric-card-label {
+        color: #888 !important;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         margin-bottom: 0.5rem;
     }
 
-    .scope-subtitle {
-        color: #666;
+    .metric-card-value {
+        color: #2ecc71 !important;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    }
+
+    .metric-card-delta {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .delta-good {
+        background: rgba(46, 204, 113, 0.2);
+        color: #2ecc71 !important;
+    }
+
+    .delta-warning {
+        background: rgba(241, 196, 15, 0.2);
+        color: #f1c40f !important;
+    }
+
+    .delta-neutral {
+        background: rgba(100, 100, 100, 0.2);
+        color: #888 !important;
+    }
+
+    /* Physics equation box */
+    .physics-box {
+        background: linear-gradient(145deg, #0d1a0d 0%, #0a120a 100%);
+        border: 2px solid #2ecc71;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1rem 0;
         text-align: center;
-        font-size: 0.9rem;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
+    }
+
+    .physics-equation {
+        color: #2ecc71 !important;
+        font-family: 'Courier New', monospace;
+        font-size: 1.3rem;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
     }
 
     /* Channel indicators */
     .channel-ch1 {
-        color: #2ecc71;
+        color: #2ecc71 !important;
         font-weight: bold;
     }
 
     .channel-ch2 {
-        color: #f1c40f;
+        color: #f1c40f !important;
         font-weight: bold;
     }
 
-    /* Knob styling for sliders */
-    .stSlider > div > div > div {
-        background: linear-gradient(90deg, #2ecc71, #27ae60);
+    /* DOE table */
+    .doe-table {
+        background: #0d1a0d;
+        border: 1px solid #1a3a1a;
+        border-radius: 8px;
     }
 
-    /* Hide streamlit elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-
-    /* Status indicator */
-    .status-ready {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        background: #2ecc71;
-        border-radius: 50%;
-        box-shadow: 0 0 10px #2ecc71;
-        margin-right: 8px;
-    }
-
-    .status-text {
-        color: #2ecc71;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-    }
-
-    /* Physics info box */
-    .physics-box {
-        background: rgba(46, 204, 113, 0.1);
-        border: 1px solid rgba(46, 204, 113, 0.3);
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 1rem 0;
-    }
-
-    .physics-equation {
-        color: #2ecc71;
-        font-family: 'Courier New', monospace;
-        font-size: 1.1rem;
-        text-align: center;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -172,8 +233,6 @@ DOE_PATH = SCRIPT_DIR / "models" / "p4_mems_doe_results.json"
 F0 = 2000.0  # Resonant frequency (Hz)
 Q = 50.0     # Quality factor
 FS = 100000  # Sampling rate (Hz)
-DURATION = 0.010  # 10ms display window
-N_SAMPLES = 1000  # Points to generate
 
 # =============================================================================
 # LSTM MODEL
@@ -229,9 +288,19 @@ def load_model():
         data = np.load(DATA_PATH, allow_pickle=True)
         norm_factor = float(data['norm_factor'])
 
-        return model, config, norm_factor, True
+        return model, config, norm_factor, "Model Loaded"
     except Exception as e:
-        return None, None, None, False
+        return None, None, None, str(e)
+
+
+@st.cache_data
+def load_doe_data():
+    """Load DOE results."""
+    try:
+        with open(DOE_PATH, 'r') as f:
+            return json.load(f)
+    except:
+        return None
 
 
 # =============================================================================
@@ -244,7 +313,6 @@ def generate_square_wave(t, frequency, amplitude):
 
 def generate_sine_sweep(t, f_start, f_end, amplitude):
     """Generate sine sweep (chirp) signal."""
-    # Linear frequency sweep
     f_instant = f_start + (f_end - f_start) * t / t[-1]
     phase = 2 * np.pi * np.cumsum(f_instant) * (t[1] - t[0])
     return amplitude * np.sin(phase)
@@ -253,7 +321,6 @@ def generate_sine_sweep(t, f_start, f_end, amplitude):
 def generate_impulse(t, amplitude, pulse_width=0.0005):
     """Generate impulse signal."""
     signal = np.zeros_like(t)
-    # Impulse at 10% of the trace
     pulse_start = int(0.1 * len(t))
     pulse_samples = int(pulse_width * FS)
     signal[pulse_start:pulse_start + pulse_samples] = amplitude
@@ -264,42 +331,30 @@ def generate_impulse(t, amplitude, pulse_width=0.0005):
 # LSTM INFERENCE ENGINE
 # =============================================================================
 def run_inference(model, voltage, seq_length, norm_factor):
-    """
-    Run LSTM inference on voltage sequence.
-    Point-by-point autoregressive prediction.
-    """
+    """Run LSTM inference on voltage sequence."""
     n = len(voltage)
     theta = np.zeros(n)
 
-    # Normalize voltage to [-1, 1] range
     v_max = max(abs(voltage.max()), abs(voltage.min()), 1.0)
     v_norm = voltage / v_max
 
-    # Normalization stats (approximate)
     v_mean, v_std = 0.0, 0.5
     th_mean, th_std = 0.0, 0.1
 
     with torch.no_grad():
         for i in range(seq_length, n):
-            # Build sliding window
             v_window = v_norm[i-seq_length:i]
             th_window = theta[i-seq_length:i]
 
-            # Stack and normalize
             x = np.stack([v_window, th_window], axis=1)
             x[:, 0] = (x[:, 0] - v_mean) / (v_std + 1e-8)
             x[:, 1] = (x[:, 1] - th_mean) / (th_std + 1e-8)
 
             x_tensor = torch.tensor(x, dtype=torch.float32).unsqueeze(0)
-
-            # Predict
             y_pred = model(x_tensor).numpy()[0, 0]
             theta[i] = y_pred * th_std + th_mean
 
-    # Denormalize to actual angle
-    theta_actual = theta * norm_factor
-
-    return theta_actual
+    return theta * norm_factor
 
 
 # =============================================================================
@@ -307,47 +362,40 @@ def run_inference(model, voltage, seq_length, norm_factor):
 # =============================================================================
 def calculate_metrics(t, theta, voltage):
     """Calculate settling time and overshoot percentage."""
-    # Find step/change point (where voltage first changes significantly)
     v_diff = np.abs(np.diff(voltage))
     if v_diff.max() > 0.1 * abs(voltage).max():
         change_idx = np.argmax(v_diff > 0.1 * v_diff.max())
     else:
         change_idx = 0
 
-    # Subset after change
     theta_after = theta[change_idx:]
     t_after = t[change_idx:]
 
     if len(theta_after) < 10:
         return 0.0, 0.0
 
-    # Steady state value (last 10% average)
     steady_state = np.mean(theta_after[-len(theta_after)//10:])
 
     if abs(steady_state) < 1e-10:
         return 0.0, 0.0
 
-    # Peak value
     if steady_state > 0:
         peak_val = theta_after.max()
     else:
         peak_val = theta_after.min()
 
-    # Overshoot percentage
     overshoot = abs((peak_val - steady_state) / steady_state) * 100
 
-    # Settling time (time to stay within 5% of steady state)
     tolerance = 0.05 * abs(steady_state)
     settled = np.abs(theta_after - steady_state) < tolerance
 
-    # Find last time it exceeded tolerance
     settling_idx = len(theta_after) - 1
     for i in range(len(settled) - 1, -1, -1):
         if not settled[i]:
             settling_idx = i
             break
 
-    settling_time = (t_after[min(settling_idx + 1, len(t_after)-1)] - t_after[0]) * 1000  # ms
+    settling_time = (t_after[min(settling_idx + 1, len(t_after)-1)] - t_after[0]) * 1000
 
     return settling_time, overshoot
 
@@ -357,15 +405,14 @@ def calculate_metrics(t, theta, voltage):
 # =============================================================================
 def create_oscilloscope_plot(t, voltage, theta):
     """Create oscilloscope-style dual-axis plot."""
-    t_ms = t * 1000  # Convert to ms
+    t_ms = t * 1000
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     # Channel 1: Voltage (Green)
     fig.add_trace(
         go.Scatter(
-            x=t_ms,
-            y=voltage,
+            x=t_ms, y=voltage,
             mode='lines',
             name='CH1: Voltage',
             line=dict(color='#2ecc71', width=2),
@@ -377,8 +424,7 @@ def create_oscilloscope_plot(t, voltage, theta):
     # Channel 2: Angle (Yellow)
     fig.add_trace(
         go.Scatter(
-            x=t_ms,
-            y=theta * 1000,  # Convert to mrad
+            x=t_ms, y=theta * 1000,
             mode='lines',
             name='CH2: Angle',
             line=dict(color='#f1c40f', width=2),
@@ -387,7 +433,6 @@ def create_oscilloscope_plot(t, voltage, theta):
         secondary_y=True
     )
 
-    # Oscilloscope styling
     fig.update_layout(
         template='plotly_dark',
         paper_bgcolor='#0a0a0a',
@@ -411,13 +456,11 @@ def create_oscilloscope_plot(t, voltage, theta):
         hovermode='x unified'
     )
 
-    # X-axis (Time)
     fig.update_xaxes(
         title_text='Time (ms)',
         title_font=dict(size=12, color='#888'),
         gridcolor='#1a3a1a',
         gridwidth=1,
-        showgrid=True,
         zeroline=True,
         zerolinecolor='#2a5a2a',
         zerolinewidth=2,
@@ -425,26 +468,21 @@ def create_oscilloscope_plot(t, voltage, theta):
         range=[0, t_ms[-1]]
     )
 
-    # Y-axis Left (Voltage - Green)
     fig.update_yaxes(
         title_text='Voltage (V)',
         title_font=dict(size=12, color='#2ecc71'),
         gridcolor='#1a3a1a',
         gridwidth=1,
-        showgrid=True,
         zeroline=True,
         zerolinecolor='#2a5a2a',
-        zerolinewidth=1,
         tickfont=dict(size=10, color='#2ecc71'),
         secondary_y=False
     )
 
-    # Y-axis Right (Angle - Yellow)
     fig.update_yaxes(
         title_text='Angle (mrad)',
         title_font=dict(size=12, color='#f1c40f'),
         gridcolor='#3a3a1a',
-        gridwidth=1,
         showgrid=False,
         tickfont=dict(size=10, color='#f1c40f'),
         secondary_y=True
@@ -454,276 +492,427 @@ def create_oscilloscope_plot(t, voltage, theta):
 
 
 # =============================================================================
+# DOE CHART
+# =============================================================================
+def create_doe_chart(doe_data):
+    """Create DOE results bar chart."""
+    experiments = doe_data['experiments']
+
+    labels = [f"seq={e['seq_length']}<br>hid={e['hidden_dim']}" for e in experiments]
+    val_losses = [e['val_loss'] for e in experiments]
+    train_times = [e['train_time_s'] for e in experiments]
+
+    best_idx = np.argmin(val_losses)
+    colors = ['#2ecc71' if i == best_idx else '#1a5a3a' for i in range(len(experiments))]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=labels,
+        y=val_losses,
+        marker_color=colors,
+        text=[f'{v:.4f}' for v in val_losses],
+        textposition='outside',
+        textfont=dict(color='#2ecc71', size=10),
+        hovertemplate='Config: %{x}<br>Val Loss: %{y:.6f}<extra></extra>'
+    ))
+
+    fig.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='#0a0a0a',
+        plot_bgcolor='#0a0a0a',
+        title=dict(
+            text='<b>DOE Grid Search: Validation Loss by Configuration</b>',
+            font=dict(size=14, color='#2ecc71'),
+            x=0.5
+        ),
+        xaxis=dict(
+            title='Configuration',
+            tickfont=dict(size=10, color='#888'),
+            gridcolor='#1a3a1a'
+        ),
+        yaxis=dict(
+            title='Validation Loss (MSE)',
+            tickfont=dict(size=10, color='#2ecc71'),
+            gridcolor='#1a3a1a'
+        ),
+        height=400,
+        margin=dict(l=60, r=40, t=60, b=60)
+    )
+
+    return fig
+
+
+# =============================================================================
 # MAIN PAGE
 # =============================================================================
-def main():
-    # Header
+
+# Header
+st.markdown('<h1 class="page-title">P4: MEMS Digital Oscilloscope</h1>', unsafe_allow_html=True)
+st.markdown('<p class="page-subtitle">Neural Surrogate for Electrostatic Mirror Dynamics</p>', unsafe_allow_html=True)
+
+st.markdown("""
+<p class="project-desc">
+    An <strong>LSTM neural surrogate</strong> trained on second-order ODE dynamics of an electrostatic MEMS mirror.
+    The model predicts time-domain angular response to arbitrary voltage waveforms with <strong>sub-millisecond</strong>
+    temporal resolution, capturing underdamped ringing behavior at f<sub>0</sub> = 2 kHz.
+</p>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
+
+# =============================================================================
+# TABS
+# =============================================================================
+tab1, tab2, tab3 = st.tabs(["Methodology", "Oscilloscope", "DOE Analysis"])
+
+# =============================================================================
+# TAB 1: METHODOLOGY
+# =============================================================================
+with tab1:
+    st.markdown('<h2 class="section-header">System Methodology</h2>', unsafe_allow_html=True)
+
+    # Physics equation
     st.markdown("""
-    <div style="text-align: center; padding: 1rem 0;">
-        <p class="scope-title">📟 P4: MEMS OSCILLOSCOPE</p>
-        <p class="scope-subtitle">Neural Surrogate for Electrostatic Mirror Dynamics</p>
+    <div class="physics-box">
+        <p class="physics-equation">I &middot; &theta;''(t) + c &middot; &theta;'(t) + k &middot; &theta;(t) = &tau;(V)</p>
+        <p style="color: #888; margin-top: 0.5rem;">Second-Order Damped Harmonic Oscillator with Electrostatic Torque</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Load model
-    model, config, norm_factor, model_loaded = load_model()
+    col1, col2 = st.columns([1, 1])
 
-    if not model_loaded:
-        st.error("⚠️ Model not found. Please run `python p4_mems_doe_train.py` first.")
-        st.stop()
-
-    # Status indicator
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 1rem;">
-        <span class="status-ready"></span>
-        <span class="status-text">Model Loaded • seq_length={} • hidden_dim={}</span>
-    </div>
-    """.format(config['seq_length'], config['hidden_dim']), unsafe_allow_html=True)
-
-    # Physics info
-    with st.expander("📐 Physics Model", expanded=False):
+    with col1:
         st.markdown("""
-        <div class="physics-box">
-            <p class="physics-equation">I·θ''(t) + c·θ'(t) + k·θ(t) = τ(V)</p>
-            <p style="color: #888; text-align: center; margin-top: 0.5rem;">
-                Electrostatic MEMS Mirror • f₀ = 2000 Hz • Q = 50
+        <div class="method-card">
+            <span class="method-number">OBJ</span>
+            <span class="method-title">Objective</span>
+            <p class="method-desc">
+                Train an <strong>LSTM neural surrogate</strong> to predict the time-domain angular response
+                of an electrostatic MEMS mirror to arbitrary voltage inputs, replacing expensive ODE integration.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown("**Resonant Freq:** 2000 Hz")
-        with col2:
-            st.markdown("**Q-Factor:** 50")
-        with col3:
-            st.markdown("**Damping:** ζ = 0.01")
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">1</span>
+            <span class="method-title">Physics Parameters</span>
+            <p class="method-desc">
+                <strong>Resonant Frequency:</strong> f<sub>0</sub> = 2000 Hz<br>
+                <strong>Quality Factor:</strong> Q = 50 (underdamped)<br>
+                <strong>Damping Ratio:</strong> &zeta; = 0.01<br>
+                <strong>Decay Time:</strong> &tau; = 15.9 ms
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("---")
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">2</span>
+            <span class="method-title">Electrostatic Torque Law</span>
+            <p class="method-desc">
+                <strong>&tau;(V) = k<sub>torque</sub> &middot; V &middot; |V|</strong><br>
+                Electrostatic force scales with V<sup>2</sup>, with sign preserved for bidirectional actuation.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # ==========================================================================
-    # CONTROL PANEL
-    # ==========================================================================
-    st.markdown("### 🎛️ Signal Generator")
+    with col2:
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">3</span>
+            <span class="method-title">Training Data Generation</span>
+            <p class="method-desc">
+                <strong>100 experiments</strong> with mixed signals:<br>
+                Step functions, chirp sweeps, band-limited noise, sine bursts.<br>
+                <strong>10,000 samples</strong> per experiment at 100 kHz.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    col_ctrl1, col_ctrl2, col_ctrl3 = st.columns(3)
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">4</span>
+            <span class="method-title">LSTM Architecture</span>
+            <p class="method-desc">
+                <strong>Input:</strong> Sliding window of [V(t), &theta;(t)] pairs<br>
+                <strong>Encoder:</strong> 2-layer LSTM with hidden_dim neurons<br>
+                <strong>Decoder:</strong> MLP (hidden &rarr; hidden/2 &rarr; 1)<br>
+                <strong>Output:</strong> &theta;(t+1) prediction
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with col_ctrl1:
-        signal_type = st.selectbox(
-            "Signal Type",
-            ["Square Wave", "Sine Sweep", "Impulse"],
-            index=0,
-            help="Select the input waveform type"
-        )
+        st.markdown("""
+        <div class="method-card">
+            <span class="method-number">5</span>
+            <span class="method-title">Autoregressive Inference</span>
+            <p class="method-desc">
+                Point-by-point prediction using <strong>sliding window</strong>.<br>
+                Each prediction becomes input for the next timestep,
+                enabling real-time simulation of arbitrary waveforms.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with col_ctrl2:
-        if signal_type == "Sine Sweep":
-            freq_start = st.slider(
-                "Start Frequency (Hz)",
-                min_value=100,
-                max_value=2000,
-                value=200,
-                step=50
-            )
-            freq_end = st.slider(
-                "End Frequency (Hz)",
-                min_value=500,
-                max_value=5000,
-                value=3000,
-                step=100
-            )
-            frequency = (freq_start, freq_end)
-        else:
-            frequency = st.slider(
-                "Frequency (Hz)",
-                min_value=100,
-                max_value=500,
-                value=200,
-                step=10,
-                help="Signal frequency"
-            )
+# =============================================================================
+# TAB 2: OSCILLOSCOPE
+# =============================================================================
+with tab2:
+    st.markdown('<h2 class="section-header">Interactive Oscilloscope</h2>', unsafe_allow_html=True)
 
-    with col_ctrl3:
-        amplitude = st.slider(
-            "Voltage Amplitude (V)",
-            min_value=10,
-            max_value=100,
-            value=50,
-            step=5,
-            help="Peak voltage amplitude"
-        )
+    # Sidebar controls
+    st.sidebar.markdown("### Navigation")
+    if st.sidebar.button("<- Back to Home", use_container_width=True):
+        st.switch_page("Home.py")
 
-    # Duration control
-    duration_ms = st.slider(
-        "Display Window (ms)",
-        min_value=5,
-        max_value=50,
-        value=10,
-        step=5,
-        help="Time window to display"
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Signal Generator")
+
+    signal_type = st.sidebar.selectbox(
+        "Signal Type",
+        ["Square Wave", "Sine Sweep", "Impulse"],
+        index=0
     )
-    duration = duration_ms / 1000.0
 
-    # Generate signal button
-    run_button = st.button("▶️ RUN TRACE", type="primary", use_container_width=True)
+    if signal_type == "Sine Sweep":
+        freq_start = st.sidebar.slider("Start Freq (Hz)", 100, 2000, 200, 50)
+        freq_end = st.sidebar.slider("End Freq (Hz)", 500, 5000, 3000, 100)
+        frequency = (freq_start, freq_end)
+    else:
+        frequency = st.sidebar.slider("Frequency (Hz)", 100, 500, 200, 10)
 
-    st.markdown("---")
+    amplitude = st.sidebar.slider("Amplitude (V)", 10, 100, 50, 5)
+    duration_ms = st.sidebar.slider("Duration (ms)", 5, 50, 10, 5)
 
-    # ==========================================================================
-    # SIGNAL GENERATION & INFERENCE
-    # ==========================================================================
-    if run_button or 'last_trace' not in st.session_state:
-        with st.spinner("⚡ Generating signal and running LSTM inference..."):
-            # Time array
-            n_samples = int(duration * FS)
-            t = np.linspace(0, duration, n_samples)
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Model Status")
 
-            # Generate signal
-            if signal_type == "Square Wave":
-                voltage = generate_square_wave(t, frequency, amplitude)
-            elif signal_type == "Sine Sweep":
-                voltage = generate_sine_sweep(t, frequency[0], frequency[1], amplitude)
-            else:  # Impulse
-                voltage = generate_impulse(t, amplitude)
+    # Load model
+    model, config, norm_factor, model_status = load_model()
 
-            # Run LSTM inference
-            start_time = time.time()
-            theta = run_inference(model, voltage, config['seq_length'], norm_factor)
-            inference_time = (time.time() - start_time) * 1000
+    if model is not None:
+        st.sidebar.success("Model Loaded")
+        st.sidebar.caption(f"seq_length: {config['seq_length']}, hidden_dim: {config['hidden_dim']}")
+        model_active = True
+    else:
+        st.sidebar.error("Model Not Found")
+        st.sidebar.caption(model_status)
+        model_active = False
 
-            # Calculate metrics
-            settling_time, overshoot = calculate_metrics(t, theta, voltage)
+    # Run button
+    run_trace = st.button("RUN TRACE", type="primary", use_container_width=True)
 
-            # Store in session state
-            st.session_state['last_trace'] = {
-                't': t,
-                'voltage': voltage,
-                'theta': theta,
-                'settling_time': settling_time,
-                'overshoot': overshoot,
-                'inference_time': inference_time,
-                'signal_type': signal_type
-            }
+    if run_trace or 'trace_data' not in st.session_state:
+        if model_active:
+            with st.spinner("Generating signal and running LSTM inference..."):
+                duration = duration_ms / 1000.0
+                n_samples = int(duration * FS)
+                t = np.linspace(0, duration, n_samples)
 
-    # Get trace data
-    trace = st.session_state.get('last_trace', None)
+                if signal_type == "Square Wave":
+                    voltage = generate_square_wave(t, frequency, amplitude)
+                elif signal_type == "Sine Sweep":
+                    voltage = generate_sine_sweep(t, frequency[0], frequency[1], amplitude)
+                else:
+                    voltage = generate_impulse(t, amplitude)
 
-    if trace is not None:
-        # =======================================================================
-        # METRICS DISPLAY (LED Style)
-        # =======================================================================
-        st.markdown("### 📊 Measurements")
+                start_time = time.time()
+                theta = run_inference(model, voltage, config['seq_length'], norm_factor)
+                inference_time = (time.time() - start_time) * 1000
 
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                settling_time, overshoot = calculate_metrics(t, theta, voltage)
 
-        with col_m1:
+                st.session_state['trace_data'] = {
+                    't': t, 'voltage': voltage, 'theta': theta,
+                    'settling_time': settling_time, 'overshoot': overshoot,
+                    'inference_time': inference_time
+                }
+
+    # Display results
+    if model_active and 'trace_data' in st.session_state:
+        trace = st.session_state['trace_data']
+
+        # Metrics
+        st.markdown('<p class="subsection-header">Measurements</p>', unsafe_allow_html=True)
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
             st.markdown(f"""
-            <div class="led-display">
-                <p class="led-label">Settling Time</p>
-                <p class="led-value">{trace['settling_time']:.2f}</p>
-                <p class="led-label">ms</p>
+            <div class="metric-card">
+                <p class="metric-card-label">Settling Time</p>
+                <p class="metric-card-value">{trace['settling_time']:.2f} ms</p>
+                <span class="metric-card-delta delta-good">5% Tolerance</span>
             </div>
             """, unsafe_allow_html=True)
 
-        with col_m2:
-            overshoot_class = "led-warning" if trace['overshoot'] > 50 else ""
+        with col2:
+            delta_class = "delta-warning" if trace['overshoot'] > 50 else "delta-good"
             st.markdown(f"""
-            <div class="led-display">
-                <p class="led-label">Overshoot</p>
-                <p class="led-value {overshoot_class}">{trace['overshoot']:.1f}</p>
-                <p class="led-label">%</p>
+            <div class="metric-card">
+                <p class="metric-card-label">Overshoot</p>
+                <p class="metric-card-value">{trace['overshoot']:.1f}%</p>
+                <span class="metric-card-delta {delta_class}">Peak vs Steady</span>
             </div>
             """, unsafe_allow_html=True)
 
-        with col_m3:
-            peak_angle = np.max(np.abs(trace['theta'])) * 1000  # mrad
+        with col3:
+            peak_angle = np.max(np.abs(trace['theta'])) * 1000
             st.markdown(f"""
-            <div class="led-display">
-                <p class="led-label">Peak Angle</p>
-                <p class="led-value">{peak_angle:.2f}</p>
-                <p class="led-label">mrad</p>
+            <div class="metric-card">
+                <p class="metric-card-label">Peak Angle</p>
+                <p class="metric-card-value">{peak_angle:.2f} mrad</p>
+                <span class="metric-card-delta delta-neutral">Maximum</span>
             </div>
             """, unsafe_allow_html=True)
 
-        with col_m4:
+        with col4:
             st.markdown(f"""
-            <div class="led-display">
-                <p class="led-label">Inference</p>
-                <p class="led-value">{trace['inference_time']:.0f}</p>
-                <p class="led-label">ms</p>
+            <div class="metric-card">
+                <p class="metric-card-label">Inference Time</p>
+                <p class="metric-card-value">{trace['inference_time']:.0f} ms</p>
+                <span class="metric-card-delta delta-good">LSTM Engine</span>
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 
-        # =======================================================================
-        # OSCILLOSCOPE DISPLAY
-        # =======================================================================
-        st.markdown("### 📺 Oscilloscope Display")
+        # Oscilloscope display
+        st.markdown('<p class="subsection-header">Oscilloscope Display</p>', unsafe_allow_html=True)
 
-        # Channel legend
         col_ch1, col_ch2 = st.columns(2)
         with col_ch1:
-            st.markdown('<span class="channel-ch1">● CH1: Voltage Input</span>', unsafe_allow_html=True)
+            st.markdown('<span class="channel-ch1">&#9679; CH1: Voltage Input (V)</span>', unsafe_allow_html=True)
         with col_ch2:
-            st.markdown('<span class="channel-ch2">● CH2: Mirror Angle (Predicted)</span>', unsafe_allow_html=True)
+            st.markdown('<span class="channel-ch2">&#9679; CH2: Mirror Angle (mrad)</span>', unsafe_allow_html=True)
 
-        # Create and display plot
         fig = create_oscilloscope_plot(trace['t'], trace['voltage'], trace['theta'])
         st.plotly_chart(fig, use_container_width=True)
 
-        # Analysis note
         if trace['overshoot'] > 20:
-            st.info(f"🔔 **Ringing Detected**: The MEMS mirror exhibits underdamped oscillations with {trace['overshoot']:.1f}% overshoot. "
-                   f"This is expected for Q={Q} (low damping).")
+            st.info(f"**Ringing Detected**: Underdamped oscillations with {trace['overshoot']:.1f}% overshoot (Q={Q}).")
 
-    # ==========================================================================
-    # DOE RESULTS TAB
-    # ==========================================================================
-    st.markdown("---")
+    elif not model_active:
+        st.warning("Model not loaded. Please run `python p4_mems_doe_train.py` to train the model.")
 
-    with st.expander("🔬 DOE Training Results", expanded=False):
-        try:
-            with open(DOE_PATH, 'r') as f:
-                doe_data = json.load(f)
+# =============================================================================
+# TAB 3: DOE ANALYSIS
+# =============================================================================
+with tab3:
+    st.markdown('<h2 class="section-header">Neural Architecture Search: Grid Search Results</h2>', unsafe_allow_html=True)
 
-            st.markdown("#### Model Selection via Grid Search")
+    doe_data = load_doe_data()
 
-            # Create DOE results table
-            exp_data = doe_data['experiments']
-            doe_df_data = {
-                'Seq Length': [e['seq_length'] for e in exp_data],
-                'Hidden Dim': [e['hidden_dim'] for e in exp_data],
-                'Parameters': [f"{e['n_parameters']:,}" for e in exp_data],
-                'Val Loss': [f"{e['val_loss']:.6f}" for e in exp_data],
-                'Train Time': [f"{e['train_time_s']:.1f}s" for e in exp_data]
-            }
+    if doe_data is not None:
+        experiments = doe_data['experiments']
+        best_config = doe_data['best_config']
 
-            st.dataframe(doe_df_data, use_container_width=True)
+        # Optimal configuration
+        st.markdown('<p class="subsection-header">Optimal Configuration (Lowest Validation Loss)</p>', unsafe_allow_html=True)
 
-            # Highlight best
-            best = doe_data['best_config']
-            st.success(f"**Best Model**: seq_length={best['seq_length']}, hidden_dim={best['hidden_dim']} "
-                      f"({best['n_parameters']:,} parameters)")
+        col1, col2, col3, col4 = st.columns(4)
 
-        except FileNotFoundError:
-            st.warning("DOE results not found. Run `python p4_mems_doe_train.py` to generate.")
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card" style="border: 2px solid #2ecc71;">
+                <p class="metric-card-label">Sequence Length</p>
+                <p class="metric-card-value">{best_config['seq_length']}</p>
+                <span class="metric-card-delta delta-good">Timesteps</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # ==========================================================================
-    # FOOTER
-    # ==========================================================================
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; padding: 1rem; color: #444;">
-        <p style="font-size: 0.8rem;">
-            P4: MEMS Neural Surrogate | LSTM trained on 2nd-order ODE dynamics
-        </p>
-        <p style="font-size: 0.7rem; color: #333;">
-            <a href="/" style="color: #2ecc71;">← Back to Dashboard</a>
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card" style="border: 2px solid #2ecc71;">
+                <p class="metric-card-label">Hidden Dim</p>
+                <p class="metric-card-value">{best_config['hidden_dim']}</p>
+                <span class="metric-card-delta delta-good">LSTM Units</span>
+            </div>
+            """, unsafe_allow_html=True)
 
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card" style="border: 2px solid #2ecc71;">
+                <p class="metric-card-label">Parameters</p>
+                <p class="metric-card-value">{best_config['n_parameters']:,}</p>
+                <span class="metric-card-delta delta-good">Trainable</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    main()
+        with col4:
+            best_loss = min(e['val_loss'] for e in experiments)
+            st.markdown(f"""
+            <div class="metric-card" style="border: 2px solid #2ecc71;">
+                <p class="metric-card-label">Best Val Loss</p>
+                <p class="metric-card-value">{best_loss:.4f}</p>
+                <span class="metric-card-delta delta-good">MSE</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+
+        # DOE Chart
+        st.markdown('<p class="subsection-header">Grid Search Comparison</p>', unsafe_allow_html=True)
+        fig = create_doe_chart(doe_data)
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Results table
+        st.markdown('<p class="subsection-header">All Experiments</p>', unsafe_allow_html=True)
+
+        table_data = {
+            'Exp': [e['experiment_id'] for e in experiments],
+            'Seq Length': [e['seq_length'] for e in experiments],
+            'Hidden Dim': [e['hidden_dim'] for e in experiments],
+            'Parameters': [f"{e['n_parameters']:,}" for e in experiments],
+            'Train Loss': [f"{e['train_loss']:.6f}" for e in experiments],
+            'Val Loss': [f"{e['val_loss']:.6f}" for e in experiments],
+            'Time (s)': [f"{e['train_time_s']:.1f}" for e in experiments]
+        }
+
+        st.dataframe(table_data, use_container_width=True, hide_index=True)
+
+        # Analysis
+        st.markdown('<p class="subsection-header">Analysis</p>', unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="method-card">
+            <span class="method-number">1</span>
+            <span class="method-title">Optimal Sequence Length</span>
+            <p class="method-desc">
+                <strong>seq_length = {best_config['seq_length']}</strong> provides the best balance.
+                At 100 kHz sampling, this corresponds to <strong>{best_config['seq_length']/100:.1f} ms</strong> of history,
+                approximately matching the resonant period (0.5 ms at 2 kHz).
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="method-card">
+            <span class="method-number">2</span>
+            <span class="method-title">Hidden Dimension Impact</span>
+            <p class="method-desc">
+                <strong>hidden_dim = {best_config['hidden_dim']}</strong> captures the dynamics adequately.
+                Larger capacity allows the LSTM to learn the complex underdamped oscillation patterns.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    else:
+        st.warning("DOE results not found. Run `python p4_mems_doe_train.py` to generate.")
+
+# =============================================================================
+# FOOTER
+# =============================================================================
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; padding: 1rem; color: #444;">
+    <p style="font-size: 0.8rem;">
+        P4: MEMS Neural Surrogate | LSTM trained on 2nd-order ODE dynamics
+    </p>
+    <p style="font-size: 0.7rem; color: #333;">
+        <a href="/" style="color: #2ecc71;">Back to Dashboard</a>
+    </p>
+</div>
+""", unsafe_allow_html=True)
