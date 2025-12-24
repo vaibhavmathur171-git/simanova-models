@@ -1,406 +1,615 @@
+# -*- coding: utf-8 -*-
 """
-Project 3: Waveguide Uniformity - DOE Training Script
-======================================================
-Design of Experiments to benchmark three CNN architectures:
-- Model A: Pixel-Wise (1x1 kernels) - Baseline
-- Model B: Standard (3-layer, 3x3 kernels) - Benchmark
-- Model C: Deep Receptive (5-layer, 3x3 kernels) - High Capacity
+P3: Virtual Wind Tunnel - DOE Training Script
+==============================================
+Design of Experiments for 1D CNN Aerodynamics Surrogate.
 
-Author: SimaNova Team
+Grid Search:
+  - kernel_size: [3, 7]
+  - num_filters: [16, 32]
+  - num_layers: [2, 3]
+
+Total: 2 x 2 x 2 = 8 experiments @ 15 epochs each
 """
+
+import json
+import time
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Tuple, List, Dict
+from itertools import product
 
 import numpy as np
-import pandas as pd
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-import os
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-BATCH_SIZE = 32
-EPOCHS = 5
-LEARNING_RATE = 0.001
-TRAIN_SPLIT = 0.8
-RANDOM_SEED = 42
-
-# Normalization constant (max depth in nm)
-DEPTH_NORM = 400.0
-
-# Paths
-DEPTH_PATH = "data/p3_depth_maps.npy"
-LIGHT_PATH = "data/p3_light_fields.npy"
-MODEL_DIR = "models"
-RESULTS_PATH = "data/p3_doe_results.csv"
 
 
 # =============================================================================
-# DEVICE DETECTION
-# =============================================================================
-def get_device():
-    """Automatically detect the best available device."""
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = torch.device("mps")
-        print("Using Apple MPS")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
-    return device
-
-
-# =============================================================================
-# MODEL ARCHITECTURES
+# 1. DATA LOADER
 # =============================================================================
 
-class ModelA_PixelWise(nn.Module):
+def load_dataset(data_path: str = "data/p3_aero_dataset.npz",
+                 train_ratio: float = 0.8,
+                 val_ratio: float = 0.1,
+                 seed: int = 42) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
-    Model A: "The Pixel-Wise" (Baseline)
+    Load airfoil dataset and create train/val/test dataloaders.
 
-    Architecture: Conv2d(1x1) -> ReLU -> Conv2d(1x1)
+    Parameters:
+    -----------
+    data_path : str
+        Path to the NPZ file
+    train_ratio, val_ratio : float
+        Split ratios (test_ratio = 1 - train - val)
+    seed : int
+        Random seed for reproducibility
 
-    Hypothesis: This should perform POORLY because 1x1 kernels cannot see
-    neighboring pixels. The physics involves energy propagation from left
-    to right, which requires spatial context.
-
-    Receptive Field: 1x1 (single pixel)
+    Returns:
+    --------
+    train_loader, val_loader, test_loader : DataLoader
     """
-    def __init__(self):
-        super(ModelA_PixelWise, self).__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=1),
+    print(f"\n[DATA] Loading dataset from {data_path}...")
+
+    # Load data
+    data = np.load(data_path)
+    X = data['X_shapes']      # (N, 2, 100) - x and y coordinates
+    y = data['y_pressures']   # (N, 100) - Cp values
+
+    print(f"       X_shapes: {X.shape}")
+    print(f"       y_pressures: {y.shape}")
+
+    # Convert to tensors
+    X_tensor = torch.FloatTensor(X)
+    y_tensor = torch.FloatTensor(y)
+
+    # Shuffle and split
+    n_samples = len(X)
+    np.random.seed(seed)
+    indices = np.random.permutation(n_samples)
+
+    n_train = int(n_samples * train_ratio)
+    n_val = int(n_samples * val_ratio)
+
+    train_idx = indices[:n_train]
+    val_idx = indices[n_train:n_train + n_val]
+    test_idx = indices[n_train + n_val:]
+
+    # Create datasets
+    train_dataset = TensorDataset(X_tensor[train_idx], y_tensor[train_idx])
+    val_dataset = TensorDataset(X_tensor[val_idx], y_tensor[val_idx])
+    test_dataset = TensorDataset(X_tensor[test_idx], y_tensor[test_idx])
+
+    # Create dataloaders
+    batch_size = 32
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    print(f"       Train: {len(train_idx)} | Val: {len(val_idx)} | Test: {len(test_idx)}")
+
+    return train_loader, val_loader, test_loader
+
+
+# =============================================================================
+# 2. 1D CNN MODEL
+# =============================================================================
+
+class AeroCNN(nn.Module):
+    """
+    1D Convolutional Neural Network for Airfoil Pressure Prediction.
+
+    Architecture:
+    -------------
+    Encoder: Stack of Conv1d layers with ReLU and BatchNorm
+    Decoder: Flatten -> Linear layers -> Output (100 Cp values)
+
+    Parameters:
+    -----------
+    kernel_size : int
+        Convolution kernel size (3 = local, 7 = wide context)
+    num_filters : int
+        Number of filters in first conv layer (doubles each layer)
+    num_layers : int
+        Number of convolutional layers in encoder
+    """
+
+    def __init__(self, kernel_size: int = 5, num_filters: int = 32, num_layers: int = 3):
+        super().__init__()
+
+        self.kernel_size = kernel_size
+        self.num_filters = num_filters
+        self.num_layers = num_layers
+
+        # Input: (Batch, 2, 100) - 2 channels (x, y coords)
+        in_channels = 2
+        seq_len = 100
+
+        # Build encoder (Conv1d layers)
+        encoder_layers = []
+        current_channels = in_channels
+        current_len = seq_len
+
+        for i in range(num_layers):
+            out_channels = num_filters * (2 ** i)  # 16, 32, 64, ...
+            padding = kernel_size // 2  # Same padding
+
+            encoder_layers.extend([
+                nn.Conv1d(current_channels, out_channels, kernel_size, padding=padding),
+                nn.BatchNorm1d(out_channels),
+                nn.ReLU(),
+            ])
+
+            # Add pooling every other layer (except last)
+            if i < num_layers - 1 and i % 2 == 0:
+                encoder_layers.append(nn.MaxPool1d(2))
+                current_len = current_len // 2
+
+            current_channels = out_channels
+
+        self.encoder = nn.Sequential(*encoder_layers)
+
+        # Calculate flattened size
+        self.flat_size = current_channels * current_len
+
+        # Build decoder (Linear layers)
+        hidden_dim = 256
+        self.decoder = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.flat_size, hidden_dim),
             nn.ReLU(),
-            nn.Conv2d(16, 1, kernel_size=1),
-            nn.Sigmoid()
+            nn.Dropout(0.2),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_dim, 100),  # Output: 100 Cp values
         )
 
-    def forward(self, x):
-        return self.net(x)
+        # Initialize weights
+        self._init_weights()
 
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
 
-class ModelB_Standard(nn.Module):
-    """
-    Model B: "The Standard" (Benchmark)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass.
 
-    Architecture: 3 Layers of Conv2d(3x3, padding=1)
-    Conv(1->16) -> ReLU -> Conv(16->32) -> ReLU -> Conv(32->1) -> Sigmoid
+        Parameters:
+        -----------
+        x : torch.Tensor, shape (Batch, 2, 100)
+            Airfoil coordinates [x_coords, y_coords]
 
-    This is the standard approach with moderate receptive field.
+        Returns:
+        --------
+        Cp : torch.Tensor, shape (Batch, 100)
+            Predicted pressure coefficients
+        """
+        features = self.encoder(x)
+        Cp = self.decoder(features)
+        return Cp
 
-    Receptive Field: 7x7 (3 layers * 2 pixels growth + 1)
-    """
-    def __init__(self):
-        super(ModelB_Standard, self).__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(32, 1, kernel_size=3, padding=1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
-
-class ModelC_DeepReceptive(nn.Module):
-    """
-    Model C: "The Deep Receptive" (High Capacity)
-
-    Architecture: 5 Layers of Conv2d(3x3, padding=1)
-    Conv(1->16) -> Conv(16->32) -> Conv(32->64) -> Conv(64->32) -> Conv(32->1)
-
-    Should theoretically capture longer-range energy depletion effects
-    due to larger receptive field.
-
-    Receptive Field: 11x11 (5 layers * 2 pixels growth + 1)
-    """
-    def __init__(self):
-        super(ModelC_DeepReceptive, self).__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(32, 1, kernel_size=3, padding=1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        return self.net(x)
+    def count_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
 # =============================================================================
-# DATA LOADING
+# 3. TRAINING FUNCTIONS
 # =============================================================================
-def load_data():
-    """Load and prepare the dataset with normalization."""
-    print("Loading data...")
 
-    # Load numpy arrays
-    depth_maps = np.load(DEPTH_PATH)
-    light_fields = np.load(LIGHT_PATH)
-
-    print(f"  Raw depth maps shape:  {depth_maps.shape}")
-    print(f"  Raw light fields shape: {light_fields.shape}")
-
-    # Normalize depth maps (divide by 400nm)
-    depth_maps_norm = depth_maps / DEPTH_NORM
-    print(f"  Normalized depth range: [{depth_maps_norm.min():.3f}, {depth_maps_norm.max():.3f}]")
-
-    # Reshape from (N, 64, 64) to (N, 1, 64, 64) for Conv2d
-    inputs = depth_maps_norm[:, np.newaxis, :, :]
-    targets = light_fields[:, np.newaxis, :, :]
-
-    print(f"  Reshaped input:  {inputs.shape}")
-    print(f"  Reshaped target: {targets.shape}")
-
-    # Convert to PyTorch tensors
-    inputs = torch.from_numpy(inputs).float()
-    targets = torch.from_numpy(targets).float()
-
-    return inputs, targets
-
-
-def split_data(inputs, targets, train_split=TRAIN_SPLIT):
-    """Split data into training and test sets."""
-    torch.manual_seed(RANDOM_SEED)
-
-    n_samples = inputs.shape[0]
-    n_train = int(n_samples * train_split)
-
-    indices = torch.randperm(n_samples)
-    train_indices = indices[:n_train]
-    test_indices = indices[n_train:]
-
-    train_inputs = inputs[train_indices]
-    train_targets = targets[train_indices]
-    test_inputs = inputs[test_indices]
-    test_targets = targets[test_indices]
-
-    print(f"\nData split:")
-    print(f"  Training samples: {len(train_indices)}")
-    print(f"  Test samples:     {len(test_indices)}")
-
-    return train_inputs, train_targets, test_inputs, test_targets
-
-
-def create_dataloaders(train_inputs, train_targets, test_inputs, test_targets):
-    """Create PyTorch DataLoaders."""
-    train_dataset = TensorDataset(train_inputs, train_targets)
-    test_dataset = TensorDataset(test_inputs, test_targets)
-
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
-
-    return train_loader, test_loader
-
-
-# =============================================================================
-# TRAINING FUNCTIONS
-# =============================================================================
-def train_epoch(model, train_loader, criterion, optimizer, device):
-    """Train the model for one epoch."""
+def train_epoch(model: nn.Module, loader: DataLoader,
+                criterion: nn.Module, optimizer: torch.optim.Optimizer,
+                device: torch.device) -> float:
+    """Train for one epoch, return average loss."""
     model.train()
     total_loss = 0.0
 
-    for inputs, targets in train_loader:
-        inputs = inputs.to(device)
-        targets = targets.to(device)
+    for X_batch, y_batch in loader:
+        X_batch = X_batch.to(device)
+        y_batch = y_batch.to(device)
 
         optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)
+        predictions = model(X_batch)
+        loss = criterion(predictions, y_batch)
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item()
+        total_loss += loss.item() * len(X_batch)
 
-    return total_loss / len(train_loader)
+    return total_loss / len(loader.dataset)
 
 
-def evaluate(model, test_loader, criterion, device):
-    """Evaluate the model on test data."""
+def validate(model: nn.Module, loader: DataLoader,
+             criterion: nn.Module, device: torch.device) -> float:
+    """Evaluate on validation set, return average loss."""
     model.eval()
     total_loss = 0.0
 
     with torch.no_grad():
-        for inputs, targets in test_loader:
-            inputs = inputs.to(device)
-            targets = targets.to(device)
+        for X_batch, y_batch in loader:
+            X_batch = X_batch.to(device)
+            y_batch = y_batch.to(device)
 
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            total_loss += loss.item()
+            predictions = model(X_batch)
+            loss = criterion(predictions, y_batch)
+            total_loss += loss.item() * len(X_batch)
 
-    return total_loss / len(test_loader)
-
-
-def count_parameters(model):
-    """Count total trainable parameters."""
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return total_loss / len(loader.dataset)
 
 
-def train_model(model, model_name, train_loader, test_loader, device, epochs=EPOCHS):
+def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader,
+                epochs: int, device: torch.device, verbose: bool = True) -> Dict:
     """
-    Train a model and return training history.
+    Train model and return training history.
 
     Returns:
-        history: List of (model_name, epoch, test_loss) tuples
+    --------
+    history : dict
+        Contains 'train_loss', 'val_loss', 'best_val_loss', 'train_time'
     """
-    print(f"\n{'='*60}")
-    print(f"Training: {model_name}")
-    print(f"{'='*60}")
-
-    model = model.to(device)
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    n_params = count_parameters(model)
-    print(f"Parameters: {n_params:,}")
-
-    history = []
-
-    print(f"\n{'Epoch':>6} | {'Train Loss':>12} | {'Test Loss':>12}")
-    print("-" * 36)
-
-    for epoch in range(1, epochs + 1):
-        train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
-        test_loss = evaluate(model, test_loader, criterion, device)
-
-        print(f"{epoch:>6} | {train_loss:>12.6f} | {test_loss:>12.6f}")
-
-        # Store results
-        history.append({
-            'Model_Name': model_name,
-            'Epoch': epoch,
-            'Test_Loss': test_loss
-        })
-
-    print("-" * 36)
-    print(f"Final Test Loss: {test_loss:.6f}")
-
-    return model, history
-
-
-# =============================================================================
-# MAIN DOE EXECUTION
-# =============================================================================
-def main():
-    """Main DOE execution function."""
-    print("=" * 70)
-    print("Project 3: DOE - CNN Architecture Benchmark")
-    print("=" * 70)
-
-    # Get device
-    device = get_device()
-    print()
-
-    # Load and prepare data
-    inputs, targets = load_data()
-    train_inputs, train_targets, test_inputs, test_targets = split_data(inputs, targets)
-    train_loader, test_loader = create_dataloaders(
-        train_inputs, train_targets, test_inputs, test_targets
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=5
     )
 
-    # Create models directory
-    if not os.path.exists(MODEL_DIR):
-        os.makedirs(MODEL_DIR)
-        print(f"\nCreated '{MODEL_DIR}' folder")
+    history = {
+        'train_loss': [],
+        'val_loss': [],
+        'best_val_loss': float('inf'),
+        'best_epoch': 0
+    }
 
-    # Define experiments
-    experiments = [
-        ("Model_A_PixelWise", ModelA_PixelWise(), "models/p3_model_A.pth"),
-        ("Model_B_Standard", ModelB_Standard(), "models/p3_model_B.pth"),
-        ("Model_C_DeepReceptive", ModelC_DeepReceptive(), "models/p3_model_C.pth"),
-    ]
+    start_time = time.time()
 
-    # Print experiment overview
-    print(f"\n{'EXPERIMENT OVERVIEW':=^70}")
-    print(f"{'Model':<25} {'Architecture':<30} {'Receptive Field':<15}")
-    print("-" * 70)
-    print(f"{'Model A (Pixel-Wise)':<25} {'2x Conv(1x1)':<30} {'1x1':<15}")
-    print(f"{'Model B (Standard)':<25} {'3x Conv(3x3)':<30} {'7x7':<15}")
-    print(f"{'Model C (Deep)':<25} {'5x Conv(3x3)':<30} {'11x11':<15}")
-    print()
+    for epoch in range(epochs):
+        train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
+        val_loss = validate(model, val_loader, criterion, device)
 
-    # Collect all results
-    all_results = []
+        history['train_loss'].append(train_loss)
+        history['val_loss'].append(val_loss)
 
-    # Run experiments
-    for model_name, model, save_path in experiments:
-        trained_model, history = train_model(
-            model, model_name, train_loader, test_loader, device, epochs=EPOCHS
+        # Track best
+        if val_loss < history['best_val_loss']:
+            history['best_val_loss'] = val_loss
+            history['best_epoch'] = epoch + 1
+
+        scheduler.step(val_loss)
+
+        if verbose and (epoch + 1) % 5 == 0:
+            print(f"       Epoch {epoch+1:2d}/{epochs}: "
+                  f"Train={train_loss:.6f} | Val={val_loss:.6f}")
+
+    history['train_time'] = time.time() - start_time
+    return history
+
+
+# =============================================================================
+# 4. DOE GRID SEARCH
+# =============================================================================
+
+@dataclass
+class DOEResult:
+    """Store results from one DOE experiment."""
+    experiment_id: int
+    kernel_size: int
+    num_filters: int
+    num_layers: int
+    n_parameters: int
+    train_time: float
+    best_val_loss: float
+    final_train_loss: float
+    final_val_loss: float
+
+
+def run_doe(train_loader: DataLoader, val_loader: DataLoader,
+            device: torch.device, epochs: int = 15) -> List[DOEResult]:
+    """
+    Run Design of Experiments grid search.
+
+    Grid:
+    -----
+    kernel_size: [3, 7]
+    num_filters: [16, 32]
+    num_layers: [2, 3]
+
+    Total: 8 experiments
+    """
+    # DOE grid
+    kernel_sizes = [3, 7]
+    num_filters_list = [16, 32]
+    num_layers_list = [2, 3]
+
+    grid = list(product(kernel_sizes, num_filters_list, num_layers_list))
+
+    print("\n" + "=" * 70)
+    print("P3 DOE: GRID SEARCH")
+    print("=" * 70)
+    print(f"\nGrid Parameters:")
+    print(f"  kernel_size: {kernel_sizes}")
+    print(f"  num_filters: {num_filters_list}")
+    print(f"  num_layers:  {num_layers_list}")
+    print(f"  Total experiments: {len(grid)}")
+    print(f"  Epochs per experiment: {epochs}")
+    print("\n" + "-" * 70)
+
+    results = []
+
+    for exp_id, (ks, nf, nl) in enumerate(grid, 1):
+        print(f"\n[EXP {exp_id}/{len(grid)}] kernel={ks}, filters={nf}, layers={nl}")
+
+        # Create model
+        model = AeroCNN(kernel_size=ks, num_filters=nf, num_layers=nl)
+        model = model.to(device)
+        n_params = model.count_parameters()
+        print(f"       Parameters: {n_params:,}")
+
+        # Train
+        history = train_model(
+            model, train_loader, val_loader,
+            epochs=epochs, device=device, verbose=True
         )
 
-        # Save model
-        torch.save(trained_model.state_dict(), save_path)
-        print(f"Model saved to: {save_path}")
+        # Store result
+        result = DOEResult(
+            experiment_id=exp_id,
+            kernel_size=ks,
+            num_filters=nf,
+            num_layers=nl,
+            n_parameters=n_params,
+            train_time=history['train_time'],
+            best_val_loss=history['best_val_loss'],
+            final_train_loss=history['train_loss'][-1],
+            final_val_loss=history['val_loss'][-1]
+        )
+        results.append(result)
 
-        # Collect results
-        all_results.extend(history)
+        print(f"       Best Val Loss: {result.best_val_loss:.6f} "
+              f"| Time: {result.train_time:.1f}s")
 
-    # Create results DataFrame
-    results_df = pd.DataFrame(all_results)
+    return results
 
-    # Save results
-    results_df.to_csv(RESULTS_PATH, index=False)
-    print(f"\n{'RESULTS SAVED':=^70}")
-    print(f"Results table: {RESULTS_PATH}")
 
-    # Print summary table
-    print(f"\n{'FINAL RESULTS SUMMARY':=^70}")
-    print(f"\n{'Model':<25} {'Final Test Loss':>15} {'Parameters':>15}")
-    print("-" * 55)
+# =============================================================================
+# 5. VISUALIZATION AND OUTPUT
+# =============================================================================
 
-    for model_name, model, _ in experiments:
-        final_loss = results_df[results_df['Model_Name'] == model_name]['Test_Loss'].iloc[-1]
-        n_params = count_parameters(model)
-        print(f"{model_name:<25} {final_loss:>15.6f} {n_params:>15,}")
+def plot_doe_results(results: List[DOEResult], output_path: Path):
+    """Create bar chart of DOE results."""
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Analysis
-    print(f"\n{'HYPOTHESIS VALIDATION':=^70}")
+    # Sort by validation loss
+    sorted_results = sorted(results, key=lambda x: x.best_val_loss)
 
-    model_a_loss = results_df[results_df['Model_Name'] == 'Model_A_PixelWise']['Test_Loss'].iloc[-1]
-    model_b_loss = results_df[results_df['Model_Name'] == 'Model_B_Standard']['Test_Loss'].iloc[-1]
-    model_c_loss = results_df[results_df['Model_Name'] == 'Model_C_DeepReceptive']['Test_Loss'].iloc[-1]
+    # Labels
+    labels = [f"K{r.kernel_size}_F{r.num_filters}_L{r.num_layers}" for r in sorted_results]
+    val_losses = [r.best_val_loss for r in sorted_results]
+    n_params = [r.n_parameters / 1000 for r in sorted_results]  # In thousands
 
-    print(f"\nModel A (1x1 kernel) Loss: {model_a_loss:.6f}")
-    print(f"Model B (3x3 kernel) Loss: {model_b_loss:.6f}")
-    print(f"Model C (5-layer)    Loss: {model_c_loss:.6f}")
+    # Color by rank
+    colors = plt.cm.RdYlGn_r(np.linspace(0.1, 0.9, len(results)))
 
-    if model_a_loss > model_b_loss:
-        print("\n[CONFIRMED] Model A performs worse than Model B.")
-        print("  -> Spatial context (3x3 kernels) is essential for this physics problem.")
-    else:
-        print("\n[UNEXPECTED] Model A performs similar or better than Model B.")
+    # Plot 1: Validation Loss
+    ax1 = axes[0]
+    bars1 = ax1.barh(labels, val_losses, color=colors)
+    ax1.set_xlabel('Best Validation Loss (MSE)', fontsize=12, fontweight='bold')
+    ax1.set_title('DOE Results: Validation Loss', fontsize=14, fontweight='bold')
+    ax1.invert_yaxis()
 
-    if model_c_loss < model_b_loss:
-        print("\n[CONFIRMED] Model C outperforms Model B.")
-        print("  -> Deeper receptive field captures longer-range depletion effects.")
-    else:
-        print("\n[OBSERVATION] Model C does not significantly outperform Model B.")
-        print("  -> 3-layer network may be sufficient for this grid size (64x64).")
+    # Add value labels
+    for bar, val in zip(bars1, val_losses):
+        ax1.text(bar.get_width() + 0.001, bar.get_y() + bar.get_height()/2,
+                f'{val:.4f}', va='center', fontsize=9)
 
-    best_model = min([
-        ('Model_A_PixelWise', model_a_loss),
-        ('Model_B_Standard', model_b_loss),
-        ('Model_C_DeepReceptive', model_c_loss)
-    ], key=lambda x: x[1])
+    # Highlight best
+    best_idx = 0
+    bars1[best_idx].set_color('#2ecc71')
+    bars1[best_idx].set_edgecolor('black')
+    bars1[best_idx].set_linewidth(2)
 
-    print(f"\nBest Model: {best_model[0]} (Loss: {best_model[1]:.6f})")
+    # Plot 2: Parameters vs Loss
+    ax2 = axes[1]
 
-    print(f"\n{'DOE COMPLETE':=^70}")
+    for i, r in enumerate(sorted_results):
+        marker = '*' if i == 0 else 'o'
+        size = 200 if i == 0 else 100
+        ax2.scatter(r.n_parameters / 1000, r.best_val_loss,
+                   s=size, c=[colors[i]], marker=marker,
+                   edgecolors='black', linewidths=1,
+                   label=f"K{r.kernel_size}_F{r.num_filters}_L{r.num_layers}")
 
+    ax2.set_xlabel('Parameters (K)', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Best Validation Loss (MSE)', fontsize=12, fontweight='bold')
+    ax2.set_title('Accuracy vs Model Complexity', fontsize=14, fontweight='bold')
+    ax2.legend(loc='upper right', fontsize=8)
+    ax2.grid(True, alpha=0.3, linestyle='--')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    print(f"\n[OK] DOE chart saved: {output_path}")
+
+
+def save_results(results: List[DOEResult], output_path: Path):
+    """Save DOE results to JSON."""
+    results_dict = {
+        'experiments': [
+            {
+                'experiment_id': r.experiment_id,
+                'kernel_size': r.kernel_size,
+                'num_filters': r.num_filters,
+                'num_layers': r.num_layers,
+                'n_parameters': r.n_parameters,
+                'train_time_s': round(r.train_time, 2),
+                'best_val_loss': round(r.best_val_loss, 8),
+                'final_train_loss': round(r.final_train_loss, 8),
+                'final_val_loss': round(r.final_val_loss, 8),
+            }
+            for r in results
+        ],
+        'best_config': None
+    }
+
+    # Find best
+    best = min(results, key=lambda x: x.best_val_loss)
+    results_dict['best_config'] = {
+        'kernel_size': best.kernel_size,
+        'num_filters': best.num_filters,
+        'num_layers': best.num_layers,
+        'val_loss': round(best.best_val_loss, 8),
+        'n_parameters': best.n_parameters
+    }
+
+    with open(output_path, 'w') as f:
+        json.dump(results_dict, f, indent=2)
+
+    print(f"[OK] DOE results saved: {output_path}")
+
+
+def train_final_model(train_loader: DataLoader, val_loader: DataLoader,
+                      test_loader: DataLoader, best_config: Dict,
+                      device: torch.device, epochs: int = 30) -> Tuple[nn.Module, Dict, float]:
+    """Train final model with best configuration."""
+    print("\n" + "=" * 70)
+    print("FINAL MODEL TRAINING")
+    print("=" * 70)
+    print(f"\nBest Configuration:")
+    print(f"  kernel_size: {best_config['kernel_size']}")
+    print(f"  num_filters: {best_config['num_filters']}")
+    print(f"  num_layers:  {best_config['num_layers']}")
+    print(f"\nTraining for {epochs} epochs...")
+
+    model = AeroCNN(
+        kernel_size=best_config['kernel_size'],
+        num_filters=best_config['num_filters'],
+        num_layers=best_config['num_layers']
+    )
+    model = model.to(device)
+
+    print(f"Parameters: {model.count_parameters():,}")
+    print("-" * 70)
+
+    # Train with more epochs
+    history = train_model(
+        model, train_loader, val_loader,
+        epochs=epochs, device=device, verbose=True
+    )
+
+    # Final test evaluation
+    criterion = nn.MSELoss()
+    test_loss = validate(model, test_loader, criterion, device)
+
+    print("-" * 70)
+    print(f"\n[FINAL RESULTS]")
+    print(f"  Best Val Loss: {history['best_val_loss']:.6f}")
+    print(f"  Test Loss:     {test_loss:.6f}")
+    print(f"  Train Time:    {history['train_time']:.1f}s")
+
+    return model, history, test_loss
+
+
+# =============================================================================
+# 6. MAIN EXECUTION
+# =============================================================================
 
 if __name__ == "__main__":
-    main()
+    print("\n" + "=" * 70)
+    print("P3: VIRTUAL WIND TUNNEL - DOE TRAINING")
+    print("=" * 70)
+
+    # Setup
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"\nDevice: {device}")
+
+    # Output directories
+    models_dir = Path("models")
+    models_dir.mkdir(exist_ok=True)
+
+    # Load data
+    train_loader, val_loader, test_loader = load_dataset(
+        data_path="data/p3_aero_dataset.npz",
+        train_ratio=0.8,
+        val_ratio=0.1,
+        seed=42
+    )
+
+    # Run DOE grid search
+    doe_results = run_doe(
+        train_loader, val_loader,
+        device=device,
+        epochs=15
+    )
+
+    # Find best configuration
+    best_result = min(doe_results, key=lambda x: x.best_val_loss)
+    best_config = {
+        'kernel_size': best_result.kernel_size,
+        'num_filters': best_result.num_filters,
+        'num_layers': best_result.num_layers
+    }
+
+    # Save DOE results
+    save_results(doe_results, models_dir / "p3_doe_results.json")
+
+    # Plot DOE results
+    plot_doe_results(doe_results, models_dir / "p3_doe_chart.png")
+
+    # Print DOE summary
+    print("\n" + "=" * 70)
+    print("DOE SUMMARY")
+    print("=" * 70)
+    print(f"\n{'Exp':<4} {'Kernel':<7} {'Filters':<8} {'Layers':<7} {'Params':<10} {'Val Loss':<12}")
+    print("-" * 60)
+
+    sorted_results = sorted(doe_results, key=lambda x: x.best_val_loss)
+    for r in sorted_results:
+        marker = " *" if r == best_result else ""
+        print(f"{r.experiment_id:<4} {r.kernel_size:<7} {r.num_filters:<8} {r.num_layers:<7} "
+              f"{r.n_parameters:<10,} {r.best_val_loss:<12.6f}{marker}")
+
+    print(f"\n[BEST] kernel={best_result.kernel_size}, filters={best_result.num_filters}, "
+          f"layers={best_result.num_layers} -> Val Loss: {best_result.best_val_loss:.6f}")
+
+    # Train final model with more epochs
+    final_model, final_history, test_loss = train_final_model(
+        train_loader, val_loader, test_loader,
+        best_config, device, epochs=30
+    )
+
+    # Save best model
+    model_path = models_dir / "best_aero_model.pth"
+    torch.save({
+        'model_state_dict': final_model.state_dict(),
+        'config': best_config,
+        'val_loss': final_history['best_val_loss'],
+        'test_loss': test_loss,
+        'n_parameters': final_model.count_parameters()
+    }, model_path)
+
+    print(f"\n[OK] Best model saved: {model_path}")
+
+    # Final summary
+    print("\n" + "=" * 70)
+    print("[OK] P3 DOE TRAINING COMPLETE")
+    print("=" * 70)
+    print(f"\nOutputs:")
+    print(f"  - models/best_aero_model.pth")
+    print(f"  - models/p3_doe_results.json")
+    print(f"  - models/p3_doe_chart.png")
+    print(f"\nBest Model Performance:")
+    print(f"  - Validation MSE: {final_history['best_val_loss']:.6f}")
+    print(f"  - Test MSE:       {test_loss:.6f}")
+    print(f"  - Parameters:     {final_model.count_parameters():,}")

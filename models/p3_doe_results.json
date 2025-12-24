@@ -1,0 +1,99 @@
+{
+  "experiments": [
+    {
+      "experiment_id": 1,
+      "kernel_size": 3,
+      "num_filters": 16,
+      "num_layers": 2,
+      "n_parameters": 503124,
+      "train_time_s": 9.92,
+      "best_val_loss": 0.08215156,
+      "final_train_loss": 0.09677986,
+      "final_val_loss": 0.08215156
+    },
+    {
+      "experiment_id": 2,
+      "kernel_size": 3,
+      "num_filters": 16,
+      "num_layers": 3,
+      "n_parameters": 919060,
+      "train_time_s": 15.83,
+      "best_val_loss": 0.0822903,
+      "final_train_loss": 0.10052637,
+      "final_val_loss": 0.08970539
+    },
+    {
+      "experiment_id": 3,
+      "kernel_size": 3,
+      "num_filters": 32,
+      "num_layers": 2,
+      "n_parameters": 917572,
+      "train_time_s": 15.46,
+      "best_val_loss": 0.08399369,
+      "final_train_loss": 0.09854346,
+      "final_val_loss": 0.08399369
+    },
+    {
+      "experiment_id": 4,
+      "kernel_size": 3,
+      "num_filters": 32,
+      "num_layers": 3,
+      "n_parameters": 1761732,
+      "train_time_s": 29.11,
+      "best_val_loss": 0.08923675,
+      "final_train_loss": 0.10595964,
+      "final_val_loss": 0.0965257
+    },
+    {
+      "experiment_id": 5,
+      "kernel_size": 7,
+      "num_filters": 16,
+      "num_layers": 2,
+      "n_parameters": 505300,
+      "train_time_s": 9.86,
+      "best_val_loss": 0.08263052,
+      "final_train_loss": 0.09873358,
+      "final_val_loss": 0.0839985
+    },
+    {
+      "experiment_id": 6,
+      "kernel_size": 7,
+      "num_filters": 16,
+      "num_layers": 3,
+      "n_parameters": 929428,
+      "train_time_s": 17.48,
+      "best_val_loss": 0.08385768,
+      "final_train_loss": 0.10190373,
+      "final_val_loss": 0.08764532
+    },
+    {
+      "experiment_id": 7,
+      "kernel_size": 7,
+      "num_filters": 32,
+      "num_layers": 2,
+      "n_parameters": 926020,
+      "train_time_s": 16.02,
+      "best_val_loss": 0.08470649,
+      "final_train_loss": 0.10227971,
+      "final_val_loss": 0.08897172
+    },
+    {
+      "experiment_id": 8,
+      "kernel_size": 7,
+      "num_filters": 32,
+      "num_layers": 3,
+      "n_parameters": 1802948,
+      "train_time_s": 33.6,
+      "best_val_loss": 0.09229152,
+      "final_train_loss": 0.10586135,
+      "final_val_loss": 0.09578131
+    }
+  ],
+  "best_config": {
+    "kernel_size": 3,
+    "num_filters": 16,
+    "num_layers": 2,
+    "val_loss": 0.08215156,
+    "n_parameters": 503124
+  }
+}
