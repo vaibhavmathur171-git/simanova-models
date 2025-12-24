@@ -112,11 +112,11 @@ class SpectralResNet(nn.Module):
         self.input_layer = nn.Sequential(
             nn.Linear(input_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.ReLU()
         )
-        self.res_blocks = nn.Sequential(*[ResidualBlock(hidden_dim) for _ in range(num_blocks)])
+        self.residual_blocks = nn.Sequential(*[ResidualBlock(hidden_dim) for _ in range(num_blocks)])
         self.output_layer = nn.Linear(hidden_dim, 1)
 
     def forward(self, x):
-        return self.output_layer(self.res_blocks(self.input_layer(x)))
+        return self.output_layer(self.residual_blocks(self.input_layer(x)))
 
 # =============================================================================
 # PHYSICS CONSTANTS & FUNCTIONS
