@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
 import json
+import os
 
 # =============================================================================
 # PAGE CONFIGURATION
@@ -23,7 +24,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CUSTOM CSS - SIMANOVA DARK MODE
+# CUSTOM CSS - SIMANOVA DARK MODE (matching P1/P2)
 # =============================================================================
 st.markdown("""
 <style>
@@ -77,6 +78,10 @@ st.markdown("""
         margin: 0 auto 1.5rem auto;
     }
 
+    .project-desc strong {
+        color: #FFFFFF !important;
+    }
+
     .section-header {
         color: #667eea !important;
         font-size: 1.4rem;
@@ -86,6 +91,52 @@ st.markdown("""
         border-bottom: 1px solid #2d2d44;
     }
 
+    .subsection-header {
+        color: #FFFFFF !important;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 1rem 0 0.5rem 0;
+    }
+
+    /* Method cards */
+    .method-card {
+        background: linear-gradient(145deg, #1a1a2e 0%, #16161a 100%);
+        border: 1px solid #2d2d44;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: border-color 0.3s ease;
+    }
+
+    .method-card:hover {
+        border-color: #667eea;
+    }
+
+    .method-number {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-right: 0.5rem;
+    }
+
+    .method-title {
+        color: #FFFFFF !important;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .method-desc {
+        color: #a0aec0 !important;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        line-height: 1.5;
+    }
+
+    /* Metric cards */
     .metric-card {
         background: linear-gradient(145deg, #1a1a2e 0%, #16161a 100%);
         border: 1px solid #2d2d44;
@@ -94,48 +145,85 @@ st.markdown("""
         text-align: center;
     }
 
-    .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #667eea !important;
-    }
-
-    .metric-label {
-        font-size: 0.85rem;
+    .metric-card-label {
         color: #a0aec0 !important;
+        font-size: 0.8rem;
+        font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
     }
 
-    .suction-metric {
-        background: linear-gradient(145deg, #1a2e1a 0%, #162016 100%);
-        border: 1px solid #2ecc71;
+    .metric-card-value {
+        color: #FFFFFF !important;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0.25rem 0;
     }
 
-    .suction-value {
-        font-size: 2.5rem;
-        font-weight: 800;
+    .metric-card-delta {
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .delta-good {
         color: #2ecc71 !important;
+    }
+
+    /* Badge container */
+    .badge-container {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin: 1rem 0;
+    }
+
+    .perf-badge {
+        display: inline-block;
+        background: rgba(46, 204, 113, 0.15);
+        border: 1px solid rgba(46, 204, 113, 0.3);
+        color: #2ecc71 !important;
+        padding: 0.5rem 1.25rem;
+        border-radius: 25px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background: #1a1a2e;
+        border: 1px solid #2d2d44;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        color: #a0aec0 !important;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: transparent;
+        color: white !important;
     }
 
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0d0d12 0%, #0a0a0f 100%);
-        border-right: 1px solid #2d2d44;
+        background: #1a1a2e !important;
     }
-
-    [data-testid="stSidebar"] .stSlider label {
+    [data-testid="stSidebar"] * {
         color: #FFFFFF !important;
-        font-weight: 500;
     }
 
-    /* Slider track */
-    [data-testid="stSidebar"] .stSlider > div > div {
-        background-color: #2d2d44 !important;
-    }
+    /* Hide default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 
-    /* Info boxes */
-    .info-box {
+    /* Physics box */
+    .physics-box {
         background: rgba(102, 126, 234, 0.1);
         border: 1px solid rgba(102, 126, 234, 0.3);
         border-radius: 8px;
@@ -143,21 +231,48 @@ st.markdown("""
         margin: 0.5rem 0;
     }
 
-    .physics-note {
-        background: rgba(46, 204, 113, 0.1);
-        border: 1px solid rgba(46, 204, 113, 0.3);
-        border-radius: 8px;
-        padding: 0.75rem;
-        font-size: 0.85rem;
-        color: #a0aec0 !important;
+    /* Author footer */
+    .author-footer {
+        text-align: center;
+        padding: 2rem 0 1rem 0;
+        border-top: 1px solid #2d2d44;
+        margin-top: 3rem;
     }
-
-    /* Hide streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+def get_plotly_layout(title="", height=400):
+    """Standard Plotly layout for dark theme."""
+    return dict(
+        title=dict(text=title, font=dict(size=16, color='#FFFFFF'), x=0.5) if title else None,
+        plot_bgcolor='#0E1117',
+        paper_bgcolor='#0E1117',
+        font=dict(family='Inter', color='#FFFFFF'),
+        xaxis=dict(
+            gridcolor='#2d2d44',
+            zerolinecolor='#4a5568',
+            tickfont=dict(color='#a0aec0'),
+            title_font=dict(color='#FFFFFF')
+        ),
+        yaxis=dict(
+            gridcolor='#2d2d44',
+            zerolinecolor='#4a5568',
+            tickfont=dict(color='#a0aec0'),
+            title_font=dict(color='#FFFFFF')
+        ),
+        height=height,
+        margin=dict(l=60, r=40, t=60, b=60),
+        showlegend=True,
+        legend=dict(
+            bgcolor='rgba(14, 17, 23, 0.8)',
+            bordercolor='#2d2d44',
+            font=dict(color='#FFFFFF')
+        )
+    )
 
 
 # =============================================================================
@@ -275,39 +390,51 @@ class AeroCNN(nn.Module):
 # =============================================================================
 # MODEL LOADING
 # =============================================================================
+try:
+    SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
+except:
+    SCRIPT_DIR = Path.cwd()
+
+
 @st.cache_resource
 def load_model():
     """Load the trained AeroCNN model."""
-    script_dir = Path(__file__).parent.parent
-    model_path = script_dir / "models" / "best_aero_model.pth"
+    paths = [
+        SCRIPT_DIR / "models" / "best_aero_model.pth",
+        Path("models/best_aero_model.pth"),
+        Path("../models/best_aero_model.pth"),
+    ]
 
-    if not model_path.exists():
-        return None, "Model not found"
+    for model_path in paths:
+        if model_path.exists():
+            try:
+                model = AeroCNN(kernel_size=3, num_filters=16, num_layers=2)
+                checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+                model.load_state_dict(checkpoint['model_state_dict'])
+                model.eval()
+                return model, checkpoint, None
+            except Exception as e:
+                return None, None, str(e)
 
-    try:
-        model = AeroCNN(kernel_size=3, num_filters=16, num_layers=2)
-        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        model.eval()
-        return model, None
-    except Exception as e:
-        return None, str(e)
+    return None, None, "Model file not found"
 
 
 @st.cache_data
 def load_doe_results():
     """Load DOE results for display."""
-    script_dir = Path(__file__).parent.parent
-    doe_path = script_dir / "models" / "p3_doe_results.json"
+    paths = [
+        SCRIPT_DIR / "models" / "p3_doe_results.json",
+        Path("models/p3_doe_results.json"),
+    ]
 
-    if not doe_path.exists():
-        return None
-
-    try:
-        with open(doe_path, 'r') as f:
-            return json.load(f)
-    except:
-        return None
+    for doe_path in paths:
+        if doe_path.exists():
+            try:
+                with open(doe_path, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+    return None
 
 
 # =============================================================================
@@ -325,7 +452,7 @@ def predict_cp(model, x_coords, y_coords):
 
 
 # =============================================================================
-# PLOTTING FUNCTIONS
+# PLOTTING FUNCTIONS (Fixed for Plotly compatibility)
 # =============================================================================
 def create_airfoil_plot(x, y, naca_code):
     """Create interactive airfoil shape plot."""
@@ -350,37 +477,16 @@ def create_airfoil_plot(x, y, naca_code):
         hoverinfo='skip'
     ))
 
-    fig.update_layout(
-        title=dict(
-            text=f'NACA {naca_code} Airfoil Shape',
-            font=dict(size=18, color='#FFFFFF'),
-            x=0.5
-        ),
-        xaxis=dict(
-            title='x/c (Chord Position)',
-            range=[-0.05, 1.05],
-            gridcolor='#2d2d44',
-            zerolinecolor='#4a5568',
-            tickfont=dict(color='#a0aec0'),
-            titlefont=dict(color='#FFFFFF')
-        ),
-        yaxis=dict(
-            title='y/c (Thickness)',
-            range=[-0.2, 0.2],
-            scaleanchor='x',
-            scaleratio=1,
-            gridcolor='#2d2d44',
-            zerolinecolor='#4a5568',
-            tickfont=dict(color='#a0aec0'),
-            titlefont=dict(color='#FFFFFF')
-        ),
-        plot_bgcolor='#0E1117',
-        paper_bgcolor='#0E1117',
-        font=dict(color='#FFFFFF'),
-        showlegend=False,
-        height=350,
-        margin=dict(l=60, r=40, t=60, b=60)
-    )
+    layout = get_plotly_layout(f'NACA {naca_code} Airfoil Shape', height=350)
+    layout['xaxis']['title'] = 'x/c (Chord Position)'
+    layout['xaxis']['range'] = [-0.05, 1.05]
+    layout['yaxis']['title'] = 'y/c (Thickness)'
+    layout['yaxis']['range'] = [-0.2, 0.2]
+    layout['yaxis']['scaleanchor'] = 'x'
+    layout['yaxis']['scaleratio'] = 1
+    layout['showlegend'] = False
+
+    fig.update_layout(**layout)
 
     return fig
 
@@ -419,42 +525,13 @@ def create_cp_plot(x, Cp, naca_code):
         hovertemplate='Suction Peak<br>x/c: %{x:.3f}<br>Cp: %{y:.3f}<extra></extra>'
     ))
 
-    fig.update_layout(
-        title=dict(
-            text=f'Pressure Distribution - NACA {naca_code}',
-            font=dict(size=18, color='#FFFFFF'),
-            x=0.5
-        ),
-        xaxis=dict(
-            title='x/c (Chord Position)',
-            range=[-0.05, 1.05],
-            gridcolor='#2d2d44',
-            zerolinecolor='#4a5568',
-            tickfont=dict(color='#a0aec0'),
-            titlefont=dict(color='#FFFFFF')
-        ),
-        yaxis=dict(
-            title='Pressure Coefficient (Cp)',
-            autorange='reversed',  # Invert Y-axis for aerodynamics convention
-            gridcolor='#2d2d44',
-            zerolinecolor='#4a5568',
-            tickfont=dict(color='#a0aec0'),
-            titlefont=dict(color='#FFFFFF')
-        ),
-        plot_bgcolor='#0E1117',
-        paper_bgcolor='#0E1117',
-        font=dict(color='#FFFFFF'),
-        showlegend=True,
-        legend=dict(
-            x=0.98, y=0.02,
-            xanchor='right', yanchor='bottom',
-            bgcolor='rgba(14, 17, 23, 0.8)',
-            bordercolor='#2d2d44',
-            font=dict(color='#FFFFFF')
-        ),
-        height=400,
-        margin=dict(l=60, r=40, t=60, b=60)
-    )
+    layout = get_plotly_layout(f'Pressure Distribution - NACA {naca_code}', height=400)
+    layout['xaxis']['title'] = 'x/c (Chord Position)'
+    layout['xaxis']['range'] = [-0.05, 1.05]
+    layout['yaxis']['title'] = 'Pressure Coefficient (Cp)'
+    layout['yaxis']['autorange'] = 'reversed'  # Invert Y-axis for aerodynamics
+
+    fig.update_layout(**layout)
 
     return fig
 
@@ -473,9 +550,8 @@ def create_doe_chart(doe_results):
 
     labels = [f"K{e['kernel_size']}_F{e['num_filters']}_L{e['num_layers']}" for e in sorted_exp]
     val_losses = [e['best_val_loss'] for e in sorted_exp]
-    params = [e['params'] / 1000 for e in sorted_exp]  # Convert to K
+    params = [e['params'] / 1000 for e in sorted_exp]
 
-    # Color scale: green (best) to red (worst)
     colors = ['#2ecc71' if i == 0 else '#3498db' if v < 0.085 else '#f39c12' if v < 0.09 else '#e74c3c'
               for i, v in enumerate(val_losses)]
 
@@ -530,7 +606,6 @@ def create_doe_chart(doe_results):
         margin=dict(l=60, r=40, t=80, b=80)
     )
 
-    # Update subplot titles
     fig.update_annotations(font=dict(size=14, color='#667eea'))
 
     return fig
@@ -540,21 +615,41 @@ def create_doe_chart(doe_results):
 # MAIN APP
 # =============================================================================
 def main():
-    # Load model
-    model, error = load_model()
+    # Load model and DOE results
+    model, checkpoint, error = load_model()
     doe_results = load_doe_results()
 
     # Header
     st.markdown('<h1 class="page-title">P3: Virtual Wind Tunnel</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="page-subtitle">Neural Surrogate for Airfoil Aerodynamics</p>', unsafe_allow_html=True)
+    st.markdown('<p class="page-subtitle">Neural Surrogate for Real-Time Airfoil Aerodynamics</p>', unsafe_allow_html=True)
 
+    # Performance badges
+    st.markdown("""
+    <div class="badge-container">
+        <span class="perf-badge">Inference: &lt;5ms</span>
+        <span class="perf-badge">2000 Training Airfoils</span>
+        <span class="perf-badge">Model: 1D CNN (AeroCNN)</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Project description
     st.markdown("""
     <p class="project-desc">
-        Real-time pressure distribution prediction using a <strong>1D Convolutional Neural Network</strong>.
-        Adjust the NACA 4-digit parameters to explore how airfoil geometry affects the
-        <strong>pressure coefficient (Cp)</strong> distribution. The suction peak indicates lift generation.
+        This engine demonstrates <strong>neural surrogate modeling</strong> for aerodynamic analysis.
+        Given a NACA 4-digit airfoil geometry, the AeroCNN predicts the <strong>pressure coefficient (Cp)</strong>
+        distribution in milliseconds - bypassing expensive CFD simulations. A <strong>Design of Experiments (DOE)</strong>
+        sweep identifies optimal CNN hyperparameters for minimal prediction error.
     </p>
     """, unsafe_allow_html=True)
+
+    # Governing Equation
+    st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+    _, eq_col, _ = st.columns([1, 2, 1])
+    with eq_col:
+        st.latex(r"C_p = 1 - \left(\frac{V}{V_\infty}\right)^2 = \frac{P - P_\infty}{\frac{1}{2}\rho V_\infty^2}")
+        st.markdown('<p style="color: #a0aec0; font-size: 0.8rem; text-align: center;">Cp = pressure coefficient, V = local velocity, P = local pressure</p>', unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
     # Check model status
     if model is None:
@@ -562,206 +657,340 @@ def main():
         st.info("Please ensure `models/best_aero_model.pth` exists. Run `p3_doe_train.py` first.")
         return
 
-    # -------------------------------------------------------------------------
-    # SIDEBAR - AIRFOIL PARAMETERS
-    # -------------------------------------------------------------------------
-    with st.sidebar:
-        st.markdown("### Airfoil Design Parameters")
-        st.markdown('<p class="physics-note">NACA 4-Digit Series</p>', unsafe_allow_html=True)
+    # =============================================================================
+    # TABS (matching P1/P2 structure)
+    # =============================================================================
+    tab1, tab2, tab3 = st.tabs(["Methodology", "Design Tool", "DOE Analysis"])
 
-        st.markdown("---")
+    # =============================================================================
+    # TAB 1: METHODOLOGY
+    # =============================================================================
+    with tab1:
+        st.markdown('<h2 class="section-header">System Methodology</h2>', unsafe_allow_html=True)
 
-        # Camber (first digit)
-        camber_pct = st.slider(
-            "Camber (Curvature)",
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            st.markdown("""
+            <div class="method-card">
+                <span class="method-number">OBJ</span>
+                <span class="method-title">Objective</span>
+                <p class="method-desc">
+                    Build a <strong>Neural Surrogate</strong> for airfoil pressure prediction.
+                    A 1D CNN (AeroCNN) maps geometry to Cp distribution with <strong>sub-5ms latency</strong>.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="method-card">
+                <span class="method-number">1</span>
+                <span class="method-title">Parametric Design Space</span>
+                <p class="method-desc">
+                    <strong>Airfoil Family:</strong> NACA 4-Digit Series<br>
+                    <strong>Camber:</strong> 0-9% of chord<br>
+                    <strong>Thickness:</strong> 6-24% of chord<br>
+                    <strong>Resolution:</strong> 100 surface points
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="method-card">
+                <span class="method-number">2</span>
+                <span class="method-title">Physics Engine</span>
+                <p class="method-desc">
+                    <strong>Vortex Panel Method</strong> solver computes ground-truth Cp.
+                    Potential flow with <strong>Kutta condition</strong> at trailing edge.
+                    2D inviscid, incompressible flow assumption.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            st.markdown("""
+            <div class="method-card">
+                <span class="method-number">3</span>
+                <span class="method-title">Dataset Generation</span>
+                <p class="method-desc">
+                    <strong>2,000 random NACA airfoils</strong> generated with Latin Hypercube sampling.
+                    Each sample: (x, y) coordinates + Cp distribution.
+                    Split: 80% train / 10% val / 10% test.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="method-card">
+                <span class="method-number">4</span>
+                <span class="method-title">Neural Architecture</span>
+                <p class="method-desc">
+                    <strong>AeroCNN:</strong> 1D Convolutional Encoder + MLP Decoder<br>
+                    Input: (2, 100) - x,y coordinates<br>
+                    Output: (100,) - Cp at each point<br>
+                    Activation: ReLU + BatchNorm + Dropout
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="method-card">
+                <span class="method-number">5</span>
+                <span class="method-title">DOE Optimization</span>
+                <p class="method-desc">
+                    <strong>Grid Search:</strong> kernel_size [3,7], filters [16,32], layers [2,3]<br>
+                    <strong>8 experiments</strong> x 15 epochs each<br>
+                    Best model retrained for 30 epochs.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # =============================================================================
+    # TAB 2: DESIGN TOOL (Interactive Inference)
+    # =============================================================================
+    with tab2:
+        st.markdown('<h2 class="section-header">Interactive Airfoil Designer</h2>', unsafe_allow_html=True)
+
+        # Sidebar inputs
+        st.sidebar.markdown("### Navigation")
+        if st.sidebar.button("<- Back to Home", use_container_width=True):
+            st.switch_page("Home.py")
+
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### NACA Parameters")
+
+        camber_pct = st.sidebar.slider(
+            "Camber (%)",
             min_value=0, max_value=9, value=2, step=1,
             help="Maximum camber as % of chord. 0 = symmetric airfoil."
         )
         m = camber_pct / 100.0
 
-        # Position (second digit)
-        position_pct = st.slider(
-            "Camber Position",
+        position_pct = st.sidebar.slider(
+            "Camber Position (x10%)",
             min_value=1, max_value=9, value=4, step=1,
-            help="Location of max camber in tenths of chord (10-90%)."
+            help="Location of max camber in tenths of chord."
         )
         p = position_pct / 10.0
 
-        # Thickness (last two digits)
-        thickness_pct = st.slider(
-            "Thickness",
+        thickness_pct = st.sidebar.slider(
+            "Thickness (%)",
             min_value=6, max_value=24, value=12, step=1,
             help="Maximum thickness as % of chord."
         )
         t = thickness_pct / 100.0
 
-        # Generate NACA code
         naca_code = f"{camber_pct}{position_pct}{thickness_pct:02d}"
 
-        st.markdown("---")
-
-        st.markdown(f"""
-        <div class="info-box">
-            <div style="font-size: 1.5rem; font-weight: 700; color: #667eea; text-align: center;">
-                NACA {naca_code}
-            </div>
-            <div style="font-size: 0.8rem; color: #a0aec0; text-align: center; margin-top: 0.5rem;">
+        st.sidebar.markdown("---")
+        st.sidebar.markdown(f"""
+        <div style="background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 8px; padding: 1rem; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">NACA {naca_code}</div>
+            <div style="font-size: 0.8rem; color: #a0aec0; margin-top: 0.5rem;">
                 {camber_pct}% camber at {position_pct*10}% chord<br>
                 {thickness_pct}% max thickness
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        # Generate and predict
+        x_raw, y_raw = naca_4digit(m, p, t, n_points=60)
+        x_100, y_100 = resample_airfoil(x_raw, y_raw, n_target=100)
+        Cp_pred = predict_cp(model, x_100, y_100)
 
-        st.markdown("""
-        <div class="physics-note">
-            <strong>Physics Guide:</strong><br>
-            - More camber = more lift (cambered wings)<br>
-            - Forward camber = earlier stall<br>
-            - Thicker airfoils = more drag, stronger structure
-        </div>
-        """, unsafe_allow_html=True)
+        # Metrics
+        min_cp = float(np.min(Cp_pred))
+        max_cp = float(np.max(Cp_pred))
+        cp_range = max_cp - min_cp
 
-    # -------------------------------------------------------------------------
-    # GENERATE AIRFOIL AND PREDICT
-    # -------------------------------------------------------------------------
-    # Generate airfoil
-    x_raw, y_raw = naca_4digit(m, p, t, n_points=60)
-    x_100, y_100 = resample_airfoil(x_raw, y_raw, n_target=100)
+        st.markdown('<p class="subsection-header">Aerodynamic Metrics</p>', unsafe_allow_html=True)
 
-    # Run AI prediction
-    Cp_pred = predict_cp(model, x_100, y_100)
+        met_col1, met_col2, met_col3, met_col4 = st.columns(4)
 
-    # Calculate metrics
-    min_cp = float(np.min(Cp_pred))
-    max_cp = float(np.max(Cp_pred))
-    cp_range = max_cp - min_cp
+        with met_col1:
+            st.markdown(f"""
+            <div class="metric-card" style="border: 2px solid #2ecc71;">
+                <p class="metric-card-label">Max Suction</p>
+                <p class="metric-card-value" style="color: #2ecc71 !important;">{min_cp:.2f}</p>
+                <span class="metric-card-delta delta-good">Min Cp</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # -------------------------------------------------------------------------
-    # MAIN CONTENT - METRICS
-    # -------------------------------------------------------------------------
-    st.markdown('<p class="section-header">Real-Time Aerodynamic Analysis</p>', unsafe_allow_html=True)
+        with met_col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Max Pressure</p>
+                <p class="metric-card-value">{max_cp:.2f}</p>
+                <span class="metric-card-delta delta-good">Max Cp</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-    col1, col2, col3, col4 = st.columns(4)
+        with met_col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Cp Range</p>
+                <p class="metric-card-value">{cp_range:.2f}</p>
+                <span class="metric-card-delta delta-good">Delta</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card suction-metric">
-            <div class="suction-value">{min_cp:.2f}</div>
-            <div class="metric-label">Max Suction (Min Cp)</div>
-        </div>
-        """, unsafe_allow_html=True)
+        with met_col4:
+            lift_indicator = abs(min_cp) * (1 + m * 10)
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-card-label">Lift Indicator</p>
+                <p class="metric-card-value">{lift_indicator:.2f}</p>
+                <span class="metric-card-delta delta-good">Relative</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{max_cp:.2f}</div>
-            <div class="metric-label">Max Pressure (Max Cp)</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{cp_range:.2f}</div>
-            <div class="metric-label">Cp Range</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Plots
+        plot_col1, plot_col2 = st.columns(2)
 
-    with col4:
-        # Estimate relative lift (simplified)
-        lift_indicator = abs(min_cp) * (1 + m * 10)
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{lift_indicator:.2f}</div>
-            <div class="metric-label">Lift Indicator</div>
-        </div>
-        """, unsafe_allow_html=True)
+        with plot_col1:
+            airfoil_fig = create_airfoil_plot(x_100, y_100, naca_code)
+            st.plotly_chart(airfoil_fig, use_container_width=True, key=f"airfoil_{naca_code}")
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        with plot_col2:
+            cp_fig = create_cp_plot(x_100, Cp_pred, naca_code)
+            st.plotly_chart(cp_fig, use_container_width=True, key=f"cp_{naca_code}")
 
-    # -------------------------------------------------------------------------
-    # PLOTS
-    # -------------------------------------------------------------------------
-    col_left, col_right = st.columns(2)
+        # Physics explanation
+        st.markdown('<p class="subsection-header">Understanding the Results</p>', unsafe_allow_html=True)
 
-    with col_left:
-        airfoil_fig = create_airfoil_plot(x_100, y_100, naca_code)
-        st.plotly_chart(airfoil_fig, use_container_width=True)
+        exp_col1, exp_col2 = st.columns(2)
 
-    with col_right:
-        cp_fig = create_cp_plot(x_100, Cp_pred, naca_code)
-        st.plotly_chart(cp_fig, use_container_width=True)
+        with exp_col1:
+            st.markdown("""
+            <div class="physics-box">
+                <h4 style="color: #667eea; margin-bottom: 0.5rem;">Pressure Coefficient (Cp)</h4>
+                <p style="color: #c0c8d0; font-size: 0.9rem; line-height: 1.6;">
+                    <strong>Negative Cp</strong>: Suction (low pressure) - creates lift<br>
+                    <strong>Positive Cp</strong>: Compression (high pressure)<br>
+                    <strong>Cp = 1</strong>: Stagnation point (flow stops)
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # -------------------------------------------------------------------------
-    # PHYSICS EXPLANATION
-    # -------------------------------------------------------------------------
-    st.markdown('<p class="section-header">Understanding the Results</p>', unsafe_allow_html=True)
+        with exp_col2:
+            st.markdown("""
+            <div class="physics-box">
+                <h4 style="color: #667eea; margin-bottom: 0.5rem;">Suction Peak</h4>
+                <p style="color: #c0c8d0; font-size: 0.9rem; line-height: 1.6;">
+                    The <strong>suction peak</strong> (minimum Cp) indicates where flow accelerates most.<br>
+                    Stronger peak = more lift potential.<br>
+                    Sharp peaks may indicate flow separation risk.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    exp_col1, exp_col2 = st.columns(2)
+    # =============================================================================
+    # TAB 3: DOE ANALYSIS
+    # =============================================================================
+    with tab3:
+        st.markdown('<h2 class="section-header">Neural Architecture Search: DOE Results</h2>', unsafe_allow_html=True)
 
-    with exp_col1:
-        st.markdown("""
-        <div class="info-box">
-            <h4 style="color: #667eea; margin-bottom: 0.5rem;">Pressure Coefficient (Cp)</h4>
-            <p style="color: #c0c8d0; font-size: 0.9rem; line-height: 1.6;">
-                <strong>Cp = (P - P_inf) / (0.5 * rho * V^2)</strong><br><br>
-                - <strong>Negative Cp</strong>: Suction (low pressure) - creates lift<br>
-                - <strong>Positive Cp</strong>: Compression (high pressure)<br>
-                - <strong>Cp = 1</strong>: Stagnation point (flow stops)
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        if doe_results:
+            best = doe_results.get('best_config', {})
+            experiments = doe_results.get('experiments', [])
 
-    with exp_col2:
-        st.markdown("""
-        <div class="info-box">
-            <h4 style="color: #667eea; margin-bottom: 0.5rem;">Suction Peak</h4>
-            <p style="color: #c0c8d0; font-size: 0.9rem; line-height: 1.6;">
-                The <strong>suction peak</strong> (minimum Cp) near the leading edge indicates
-                where flow accelerates most rapidly around the airfoil.<br><br>
-                - Stronger suction peak = more lift potential<br>
-                - Peak location affects stall behavior<br>
-                - Sharp peaks may indicate flow separation risk
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+            # Optimal Configuration
+            st.markdown('<p class="subsection-header">Optimal Configuration (Lowest Validation Loss)</p>', unsafe_allow_html=True)
 
-    # -------------------------------------------------------------------------
-    # DOE PERFORMANCE CHART
-    # -------------------------------------------------------------------------
-    st.markdown('<p class="section-header">Model Accuracy Analysis (DOE Results)</p>', unsafe_allow_html=True)
+            opt_col1, opt_col2, opt_col3, opt_col4 = st.columns(4)
 
-    if doe_results:
-        doe_fig = create_doe_chart(doe_results)
-        if doe_fig:
-            st.plotly_chart(doe_fig, use_container_width=True)
+            with opt_col1:
+                st.markdown(f"""
+                <div class="metric-card" style="border: 2px solid #2ecc71;">
+                    <p class="metric-card-label">Kernel Size</p>
+                    <p class="metric-card-value">{best.get('kernel_size', 3)}</p>
+                    <span class="metric-card-delta delta-good">Conv1D</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-        # Best model info
-        best = doe_results.get('best_config', {})
-        st.markdown(f"""
-        <div class="info-box" style="text-align: center;">
-            <h4 style="color: #2ecc71; margin-bottom: 0.5rem;">Best Model Configuration</h4>
-            <p style="color: #c0c8d0; font-size: 0.95rem;">
-                <strong>Kernel Size:</strong> {best.get('kernel_size', 3)} |
-                <strong>Filters:</strong> {best.get('num_filters', 16)} |
-                <strong>Layers:</strong> {best.get('num_layers', 2)} |
-                <strong>Test MSE:</strong> {best.get('test_loss', 0):.4f}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("DOE results not found. Run `p3_doe_train.py` to generate model performance analysis.")
+            with opt_col2:
+                st.markdown(f"""
+                <div class="metric-card" style="border: 2px solid #2ecc71;">
+                    <p class="metric-card-label">Num Filters</p>
+                    <p class="metric-card-value">{best.get('num_filters', 16)}</p>
+                    <span class="metric-card-delta delta-good">Channels</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-    # -------------------------------------------------------------------------
+            with opt_col3:
+                st.markdown(f"""
+                <div class="metric-card" style="border: 2px solid #2ecc71;">
+                    <p class="metric-card-label">Num Layers</p>
+                    <p class="metric-card-value">{best.get('num_layers', 2)}</p>
+                    <span class="metric-card-delta delta-good">Depth</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with opt_col4:
+                st.markdown(f"""
+                <div class="metric-card" style="border: 2px solid #2ecc71;">
+                    <p class="metric-card-label">Val MSE</p>
+                    <p class="metric-card-value">{best.get('val_loss', 0):.4f}</p>
+                    <span class="metric-card-delta delta-good">Loss</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
+
+            # DOE Chart
+            st.markdown('<p class="subsection-header">DOE Performance Comparison</p>', unsafe_allow_html=True)
+
+            doe_fig = create_doe_chart(doe_results)
+            if doe_fig:
+                st.plotly_chart(doe_fig, use_container_width=True, key="doe_chart")
+
+            # Experiments Table
+            st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+            st.markdown('<p class="subsection-header">All Experiments</p>', unsafe_allow_html=True)
+
+            if experiments:
+                import pandas as pd
+                df = pd.DataFrame(experiments)
+                df = df[['kernel_size', 'num_filters', 'num_layers', 'params', 'best_val_loss', 'train_time']]
+                df.columns = ['Kernel', 'Filters', 'Layers', 'Parameters', 'Val Loss', 'Time (s)']
+                df = df.sort_values('Val Loss')
+                df['Parameters'] = df['Parameters'].apply(lambda x: f"{x:,}")
+                df['Val Loss'] = df['Val Loss'].apply(lambda x: f"{x:.4f}")
+                df['Time (s)'] = df['Time (s)'].apply(lambda x: f"{x:.1f}")
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+            # Training Info
+            st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div class="physics-box">
+                <h4 style="color: #667eea; margin-bottom: 0.5rem;">Training Details</h4>
+                <p style="color: #c0c8d0; font-size: 0.9rem; line-height: 1.6;">
+                    <strong>Hardware:</strong> CPU (local training)<br>
+                    <strong>Dataset:</strong> 2000 airfoils (1600 train / 200 val / 200 test)<br>
+                    <strong>DOE:</strong> 8 experiments x 15 epochs = 120 total training runs<br>
+                    <strong>Final Model:</strong> Best config retrained for 30 epochs
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        else:
+            st.warning("DOE results not found. Run `p3_doe_train.py` to generate model performance analysis.")
+
+    # =============================================================================
     # FOOTER
-    # -------------------------------------------------------------------------
-    st.markdown("---")
+    # =============================================================================
     st.markdown("""
-    <div style="text-align: center; color: #4a5568; font-size: 0.85rem; padding: 1rem 0;">
-        <strong>P3: Virtual Wind Tunnel</strong> | Neural Surrogate for NACA Airfoil Aerodynamics<br>
-        Model: AeroCNN (1D Conv) | Physics: Vortex Panel Method | Training: 2000 Airfoils
+    <div class="author-footer">
+        <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 0.5rem;">
+            Built by <strong style="color: #FFFFFF;">Vaibhav Mathur</strong>
+        </p>
+        <p style="color: #4a5568; font-size: 0.85rem;">
+            <a href="https://x.com/vaibhavmathur91" target="_blank">X (Twitter)</a>
+            <a href="https://linkedin.com/in/vaibhavmathur91" target="_blank">LinkedIn</a>
+            <a href="https://github.com/vaibhavmathur171-git/simanova-models" target="_blank">GitHub</a>
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
