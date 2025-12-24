@@ -550,7 +550,7 @@ def create_doe_chart(doe_results):
 
     labels = [f"K{e['kernel_size']}_F{e['num_filters']}_L{e['num_layers']}" for e in sorted_exp]
     val_losses = [e['best_val_loss'] for e in sorted_exp]
-    params = [e['params'] / 1000 for e in sorted_exp]
+    params = [e['n_parameters'] / 1000 for e in sorted_exp]
 
     colors = ['#2ecc71' if i == 0 else '#3498db' if v < 0.085 else '#f39c12' if v < 0.09 else '#e74c3c'
               for i, v in enumerate(val_losses)]
@@ -953,7 +953,7 @@ def main():
             if experiments:
                 import pandas as pd
                 df = pd.DataFrame(experiments)
-                df = df[['kernel_size', 'num_filters', 'num_layers', 'params', 'best_val_loss', 'train_time']]
+                df = df[['kernel_size', 'num_filters', 'num_layers', 'n_parameters', 'best_val_loss', 'train_time_s']]
                 df.columns = ['Kernel', 'Filters', 'Layers', 'Parameters', 'Val Loss', 'Time (s)']
                 df = df.sort_values('Val Loss')
                 df['Parameters'] = df['Parameters'].apply(lambda x: f"{x:,}")
