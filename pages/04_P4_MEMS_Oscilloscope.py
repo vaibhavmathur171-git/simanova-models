@@ -165,7 +165,7 @@ st.markdown("""
 # =============================================================================
 SCRIPT_DIR = Path(__file__).parent.parent
 MODEL_PATH = SCRIPT_DIR / "models" / "best_mems_model.pth"
-DATA_PATH = SCRIPT_DIR / "data" / "p4_mems_dataset.npz"
+DATA_PATH = SCRIPT_DIR / "Data" / "p4_mems_dataset.npz"
 DOE_PATH = SCRIPT_DIR / "models" / "p4_mems_doe_results.json"
 
 # Physics parameters
