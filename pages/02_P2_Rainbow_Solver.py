@@ -679,201 +679,209 @@ with tab2:
     st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
 
     # =========================================================================
-    # OBSERVER VIEW: Optimal vs Uncorrected Design
+    # VISUALIZATION 1: RGB Diffraction Angles (Bar Chart)
     # =========================================================================
-    st.markdown('<p class="subsection-header">Ray Tracing: Optimized vs Uncorrected Grating</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subsection-header">RGB Channel Diffraction Angles</p>', unsafe_allow_html=True)
 
-    col_opt, col_uncorr = st.columns(2)
+    col_bar, col_info = st.columns([2, 1])
 
-    with col_opt:
-        st.markdown("**Optimized Pitch (Photopic-Weighted)**")
-        fig_opt = go.Figure()
+    with col_bar:
+        # Create bar chart showing actual diffraction angles for each color
+        fig_rgb = go.Figure()
 
-        # Dark background
-        fig_opt.add_shape(type="rect", x0=-2, x1=2, y0=-1.2, y1=1.2,
-                         fillcolor="#0a0a0f", line=dict(width=0))
+        # Data for the bar chart
+        colors_data = ['Blue (450nm)', 'Green (532nm)', 'Red (635nm)']
+        angles_data = [float(ang_b_ana), float(ang_g_ana), float(ang_r_ana)]
+        bar_colors = ['#3498db', '#2ecc71', '#e74c3c']
 
-        # Grating structure at bottom
-        fig_opt.add_shape(type="rect", x0=-1.5, x1=1.5, y0=-1.0, y1=-0.85,
-                         fillcolor="#1a1a2e", line=dict(color="#4ECDC4", width=2))
-
-        # Grating lines
-        for i in range(-12, 13):
-            fig_opt.add_shape(type="line", x0=i*0.1, x1=i*0.1, y0=-1.0, y1=-0.85,
-                             line=dict(color="#4ECDC4", width=1))
-
-        # Incident white light (from top)
-        fig_opt.add_trace(go.Scatter(
-            x=[0, 0], y=[1.0, -0.85], mode='lines',
-            line=dict(color='#FFFFFF', width=4), name='Incident Light',
-            hoverinfo='name'
+        fig_rgb.add_trace(go.Bar(
+            x=colors_data,
+            y=angles_data,
+            marker_color=bar_colors,
+            text=[f'{a:.2f} deg' for a in angles_data],
+            textposition='outside',
+            textfont=dict(color='white', size=14),
+            width=0.6
         ))
 
-        # Diffracted RGB rays - converging nicely
-        ray_data = [
-            (ang_b_ana, '#3498db', 'Blue 450nm'),
-            (ang_g_ana, '#2ecc71', 'Green 532nm'),
-            (ang_r_ana, '#e74c3c', 'Red 635nm'),
-        ]
-
-        for angle, color, name in ray_data:
-            # Normalize angle deviation for visualization
-            angle_rad = np.radians(angle - target_angle) * 3  # Scale for visibility
-            x_end = np.sin(angle_rad) * 0.8
-            fig_opt.add_trace(go.Scatter(
-                x=[0, x_end], y=[-0.85, 0.5], mode='lines',
-                line=dict(color=color, width=5), name=name,
-                hoverinfo='name', opacity=0.9
-            ))
-
-        # Eye/observer icon at convergence point
-        fig_opt.add_trace(go.Scatter(
-            x=[0], y=[0.7], mode='markers+text',
-            marker=dict(size=30, color='#2ecc71', symbol='circle'),
-            text=['EYE'], textposition='middle center',
-            textfont=dict(color='white', size=8, family='Arial Black'),
-            hoverinfo='skip'
-        ))
-
-        # Labels
-        fig_opt.add_annotation(x=0, y=1.1, text="TIGHT CONVERGENCE",
-                              font=dict(color='#2ecc71', size=12, family='Arial Black'),
-                              showarrow=False)
-        fig_opt.add_annotation(x=0, y=-1.15, text=f"Pitch = {analytical_pitch:.1f} nm",
-                              font=dict(color='#4ECDC4', size=11), showarrow=False)
-
-        fig_opt.update_layout(
-            template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0a0a0f',
-            height=350, showlegend=False,
-            xaxis=dict(visible=False, range=[-1.5, 1.5], fixedrange=True),
-            yaxis=dict(visible=False, range=[-1.3, 1.2], fixedrange=True),
-            margin=dict(l=10, r=10, t=10, b=10)
+        # Add target angle line
+        fig_rgb.add_hline(
+            y=float(target_angle),
+            line_dash="dash",
+            line_color="#FFD700",
+            line_width=3,
+            annotation_text=f"Target: {target_angle:.1f} deg",
+            annotation_position="right",
+            annotation_font=dict(color='#FFD700', size=12)
         )
-        st.plotly_chart(fig_opt, use_container_width=True, config=PLOTLY_CONFIG)
 
-    with col_uncorr:
-        st.markdown("**Uncorrected Design (Visible Rainbow Fringing)**")
-        fig_uncorr = go.Figure()
+        fig_rgb.update_layout(
+            template='plotly_dark',
+            paper_bgcolor='#0E1117',
+            plot_bgcolor='#1a1a2e',
+            height=350,
+            yaxis_title='Diffraction Angle (degrees)',
+            yaxis=dict(
+                gridcolor='#2d2d44',
+                tickfont=dict(color='white', size=12),
+                title_font=dict(color='white', size=14)
+            ),
+            xaxis=dict(tickfont=dict(color='white', size=12)),
+            margin=dict(l=60, r=40, t=40, b=60),
+            showlegend=False
+        )
+        st.plotly_chart(fig_rgb, use_container_width=True, config=PLOTLY_CONFIG)
 
-        # Dark background
-        fig_uncorr.add_shape(type="rect", x0=-2, x1=2, y0=-1.2, y1=1.2,
-                            fillcolor="#0a0a0f", line=dict(width=0))
+    with col_info:
+        # Calculate deviations from target
+        dev_b = float(ang_b_ana) - float(target_angle)
+        dev_g = float(ang_g_ana) - float(target_angle)
+        dev_r = float(ang_r_ana) - float(target_angle)
+        total_spread = abs(float(ang_b_ana) - float(ang_r_ana))
 
-        # Grating structure
-        fig_uncorr.add_shape(type="rect", x0=-1.5, x1=1.5, y0=-1.0, y1=-0.85,
-                            fillcolor="#1a1a2e", line=dict(color="#666", width=2))
+        st.markdown(f"""
+        <div style="background: #1a1a2e; border: 1px solid #2d2d44; border-radius: 12px; padding: 1.25rem; height: 100%;">
+            <p style="color: #4ECDC4; font-weight: 600; margin-bottom: 1rem; font-size: 1rem;">Angular Deviations</p>
+            <p style="color: #3498db; margin: 0.5rem 0;"><strong>Blue:</strong> {dev_b:+.3f} deg</p>
+            <p style="color: #2ecc71; margin: 0.5rem 0;"><strong>Green:</strong> {dev_g:+.3f} deg (baseline)</p>
+            <p style="color: #e74c3c; margin: 0.5rem 0;"><strong>Red:</strong> {dev_r:+.3f} deg</p>
+            <hr style="border-color: #2d2d44; margin: 1rem 0;">
+            <p style="color: #FFD700; margin: 0;"><strong>Total Spread:</strong> {total_spread:.3f} deg</p>
+            <p style="color: #888; font-size: 0.85rem; margin-top: 0.5rem;">This is the "rainbow effect" - colors hit the eye at different angles</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        for i in range(-12, 13):
-            fig_uncorr.add_shape(type="line", x0=i*0.1, x1=i*0.1, y0=-1.0, y1=-0.85,
-                                line=dict(color="#666", width=1))
+    st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
-        # Incident white light
-        fig_uncorr.add_trace(go.Scatter(
-            x=[0, 0], y=[1.0, -0.85], mode='lines',
-            line=dict(color='#FFFFFF', width=4), name='Incident Light'
-        ))
+    # =========================================================================
+    # VISUALIZATION 2: Full Spectrum Dispersion Curve
+    # =========================================================================
+    st.markdown('<p class="subsection-header">Chromatic Dispersion Across Visible Spectrum</p>', unsafe_allow_html=True)
 
-        # Dispersed RGB rays - showing rainbow spread
-        dispersed_rays = [
-            (-0.5, '#3498db', 'Blue - Over-diffracted'),
-            (0.0, '#2ecc71', 'Green - Target'),
-            (0.4, '#e74c3c', 'Red - Under-diffracted'),
-        ]
+    col_disp, col_ri = st.columns(2)
 
-        for x_offset, color, name in dispersed_rays:
-            fig_uncorr.add_trace(go.Scatter(
-                x=[0, x_offset], y=[-0.85, 0.5], mode='lines',
-                line=dict(color=color, width=5), name=name, opacity=0.9
-            ))
+    with col_disp:
+        # Calculate dispersion curve across visible spectrum
+        wavelengths = np.linspace(400, 700, 100)
+        diff_angles = []
+        for lam in wavelengths:
+            n = float(sellmeier_n(lam, coeffs))
+            ang = float(diffraction_angle(analytical_pitch, lam, n))
+            diff_angles.append(ang)
 
-        # Rainbow arc to show color separation
-        theta_arc = np.linspace(-0.3, 0.3, 50)
-        for i, (color, offset) in enumerate([('#3498db', -0.15), ('#2ecc71', 0), ('#e74c3c', 0.15)]):
-            x_arc = (theta_arc + offset) * 1.5
-            y_arc = 0.55 + np.cos(theta_arc * 5) * 0.05
-            fig_uncorr.add_trace(go.Scatter(
-                x=x_arc, y=y_arc, mode='lines',
-                line=dict(color=color, width=8), opacity=0.6,
+        fig_disp = go.Figure()
+
+        # Create gradient color based on wavelength
+        colors_spectrum = [f'hsl({int(270 - (w-400)*0.9)}, 80%, 50%)' for w in wavelengths]
+
+        # Add the dispersion curve with gradient coloring
+        for i in range(len(wavelengths)-1):
+            fig_disp.add_trace(go.Scatter(
+                x=[wavelengths[i], wavelengths[i+1]],
+                y=[diff_angles[i], diff_angles[i+1]],
+                mode='lines',
+                line=dict(color=colors_spectrum[i], width=4),
+                showlegend=False,
                 hoverinfo='skip'
             ))
 
-        # Warning icon
-        fig_uncorr.add_annotation(x=0, y=1.1, text="RAINBOW FRINGING",
-                                 font=dict(color='#e74c3c', size=12, family='Arial Black'),
-                                 showarrow=False)
-        fig_uncorr.add_annotation(x=0, y=-1.15, text="Colors separate at eye",
-                                 font=dict(color='#888', size=11), showarrow=False)
+        # Add RGB markers
+        fig_disp.add_trace(go.Scatter(
+            x=[LAMBDA_BLUE, LAMBDA_GREEN, LAMBDA_RED],
+            y=[float(ang_b_ana), float(ang_g_ana), float(ang_r_ana)],
+            mode='markers+text',
+            marker=dict(size=16, color=['#3498db', '#2ecc71', '#e74c3c'],
+                       line=dict(width=2, color='white')),
+            text=['B', 'G', 'R'],
+            textposition='top center',
+            textfont=dict(color='white', size=12, family='Arial Black'),
+            name='RGB Channels'
+        ))
 
-        fig_uncorr.update_layout(
-            template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0a0a0f',
-            height=350, showlegend=False,
-            xaxis=dict(visible=False, range=[-1.5, 1.5], fixedrange=True),
-            yaxis=dict(visible=False, range=[-1.3, 1.2], fixedrange=True),
-            margin=dict(l=10, r=10, t=10, b=10)
+        # Target line
+        fig_disp.add_hline(
+            y=float(target_angle),
+            line_dash="dot",
+            line_color="#FFD700",
+            line_width=2,
+            annotation_text="Target",
+            annotation_position="left",
+            annotation_font=dict(color='#FFD700', size=10)
         )
-        st.plotly_chart(fig_uncorr, use_container_width=True, config=PLOTLY_CONFIG)
 
-    # =========================================================================
-    # CHROMATIC ANGULAR DEVIATION (Sellmeier-based)
-    # =========================================================================
-    st.markdown('<p class="subsection-header">Chromatic Angular Deviation (Sellmeier Dispersion)</p>', unsafe_allow_html=True)
+        fig_disp.update_layout(
+            template='plotly_dark',
+            paper_bgcolor='#0E1117',
+            plot_bgcolor='#1a1a2e',
+            height=320,
+            title=dict(text='Diffraction Angle vs Wavelength', font=dict(color='white', size=14)),
+            xaxis_title='Wavelength (nm)',
+            yaxis_title='Diffraction Angle (deg)',
+            xaxis=dict(gridcolor='#2d2d44', tickfont=dict(color='white')),
+            yaxis=dict(gridcolor='#2d2d44', tickfont=dict(color='white')),
+            margin=dict(l=60, r=20, t=50, b=50),
+            showlegend=False
+        )
+        st.plotly_chart(fig_disp, use_container_width=True, config=PLOTLY_CONFIG)
 
-    wavelengths = np.linspace(400, 700, 100)
-    deviations = []
-    for lam in wavelengths:
-        n = sellmeier_n(lam, coeffs)
-        ang = diffraction_angle(analytical_pitch, lam, n)
-        deviations.append(ang - target_angle)
+    with col_ri:
+        # Calculate refractive index curve (Sellmeier dispersion)
+        n_values = [float(sellmeier_n(lam, coeffs)) for lam in wavelengths]
 
-    fig_spec = go.Figure()
+        fig_ri = go.Figure()
 
-    # Full spectrum curve
-    fig_spec.add_trace(go.Scatter(
-        x=wavelengths, y=deviations,
-        mode='lines', line=dict(width=3, color='#4ECDC4'),
-        name='Dispersion Curve', fill='tozeroy', fillcolor='rgba(78,205,196,0.1)'
-    ))
+        # Refractive index curve with gradient
+        for i in range(len(wavelengths)-1):
+            fig_ri.add_trace(go.Scatter(
+                x=[wavelengths[i], wavelengths[i+1]],
+                y=[n_values[i], n_values[i+1]],
+                mode='lines',
+                line=dict(color=colors_spectrum[i], width=4),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
 
-    # RGB markers with labels
-    rgb_wavelengths = [LAMBDA_BLUE, LAMBDA_GREEN, LAMBDA_RED]
-    rgb_deviations = [ang_b_ana - target_angle, ang_g_ana - target_angle, ang_r_ana - target_angle]
-    rgb_colors = ['#45B7D1', '#4ECDC4', '#FF6B6B']
-    rgb_names = ['Blue (450nm)', 'Green (532nm) - Baseline', 'Red (635nm)']
+        # RGB markers on refractive index
+        n_rgb = [float(sellmeier_n(LAMBDA_BLUE, coeffs)),
+                 float(sellmeier_n(LAMBDA_GREEN, coeffs)),
+                 float(sellmeier_n(LAMBDA_RED, coeffs))]
 
-    fig_spec.add_trace(go.Scatter(
-        x=rgb_wavelengths, y=rgb_deviations,
-        mode='markers+text',
-        marker=dict(size=14, color=rgb_colors, line=dict(width=2, color='white')),
-        text=['B', 'G (0 deg)', 'R'],
-        textposition='top center',
-        textfont=dict(color='white', size=10),
-        name='RGB Channels'
-    ))
+        fig_ri.add_trace(go.Scatter(
+            x=[LAMBDA_BLUE, LAMBDA_GREEN, LAMBDA_RED],
+            y=n_rgb,
+            mode='markers+text',
+            marker=dict(size=16, color=['#3498db', '#2ecc71', '#e74c3c'],
+                       line=dict(width=2, color='white')),
+            text=['B', 'G', 'R'],
+            textposition='top center',
+            textfont=dict(color='white', size=12, family='Arial Black'),
+            name='RGB'
+        ))
 
-    # Zero line (Green baseline)
-    fig_spec.add_hline(y=0, line_dash="dash", line_color="#4ECDC4", opacity=0.7,
-                       annotation_text="Green = 0 deg (Photopic Baseline)",
-                       annotation_position="right",
-                       annotation_font=dict(color='#4ECDC4', size=10))
-
-    layout = get_plotly_layout(height=350)
-    layout['xaxis_title'] = 'Wavelength (nm)'
-    layout['yaxis_title'] = 'Angular Deviation from Target (deg)'
-    layout['showlegend'] = True
-    layout['legend'] = dict(x=0.02, y=0.98, bgcolor='rgba(26, 26, 46, 0.9)', font=dict(color='#FFFFFF'))
-    fig_spec.update_layout(**layout)
-
-    st.plotly_chart(fig_spec, use_container_width=True, config=PLOTLY_CONFIG)
+        fig_ri.update_layout(
+            template='plotly_dark',
+            paper_bgcolor='#0E1117',
+            plot_bgcolor='#1a1a2e',
+            height=320,
+            title=dict(text='Refractive Index (Sellmeier)', font=dict(color='white', size=14)),
+            xaxis_title='Wavelength (nm)',
+            yaxis_title='Refractive Index n',
+            xaxis=dict(gridcolor='#2d2d44', tickfont=dict(color='white')),
+            yaxis=dict(gridcolor='#2d2d44', tickfont=dict(color='white')),
+            margin=dict(l=60, r=20, t=50, b=50),
+            showlegend=False
+        )
+        st.plotly_chart(fig_ri, use_container_width=True, config=PLOTLY_CONFIG)
 
     # Physics explanation
     st.markdown(f"""
     <div style="background: rgba(78, 205, 196, 0.1); border: 1px solid #4ECDC4; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
-        <p style="color: #FFFFFF; margin: 0; font-size: 0.9rem;">
-            <strong style="color: #4ECDC4;">Physics Insight:</strong>
-            The pitch L={analytical_pitch:.1f}nm is optimized for Green (532nm) as the 0 deg baseline because
-            <strong>human photopic vision</strong> is most sensitive at ~555nm. Blue deviates by
-            <strong>{abs(ang_b_ana - target_angle):.3f} deg</strong> and Red by
-            <strong>{abs(ang_r_ana - target_angle):.3f} deg</strong> due to Sellmeier dispersion (n_blue > n_green > n_red).
+        <p style="color: #FFFFFF; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+            <strong style="color: #4ECDC4;">The Rainbow Effect Explained:</strong><br>
+            The grating pitch <strong>{analytical_pitch:.1f} nm</strong> is optimized for Green (532nm) at <strong>{target_angle:.1f} deg</strong>.
+            Due to <strong>Sellmeier dispersion</strong>, the refractive index decreases with wavelength
+            (n<sub>blue</sub>={float(sellmeier_n(LAMBDA_BLUE, coeffs)):.4f} > n<sub>green</sub>={float(sellmeier_n(LAMBDA_GREEN, coeffs)):.4f} > n<sub>red</sub>={float(sellmeier_n(LAMBDA_RED, coeffs)):.4f}).
+            This causes Blue to diffract more ({float(ang_b_ana):.2f} deg) and Red less ({float(ang_r_ana):.2f} deg), creating visible color separation.
         </p>
     </div>
     """, unsafe_allow_html=True)
