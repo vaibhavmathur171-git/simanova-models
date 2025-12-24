@@ -1,0 +1,74 @@
+{
+  "experiments": [
+    {
+      "experiment_id": 1,
+      "seq_length": 20,
+      "hidden_dim": 32,
+      "n_parameters": 13601,
+      "train_loss": 0.003346657834808064,
+      "val_loss": 0.0027246826980262995,
+      "train_time_s": 34.21
+    },
+    {
+      "experiment_id": 2,
+      "seq_length": 20,
+      "hidden_dim": 64,
+      "n_parameters": 52801,
+      "train_loss": 0.0027038241053146603,
+      "val_loss": 0.001336428307928145,
+      "train_time_s": 52.99
+    },
+    {
+      "experiment_id": 3,
+      "seq_length": 50,
+      "hidden_dim": 32,
+      "n_parameters": 13601,
+      "train_loss": 0.0028937214671776266,
+      "val_loss": 0.0017827491129282862,
+      "train_time_s": 55.64
+    },
+    {
+      "experiment_id": 4,
+      "seq_length": 50,
+      "hidden_dim": 64,
+      "n_parameters": 52801,
+      "train_loss": 0.0019478541033306949,
+      "val_loss": 0.0009682626985013485,
+      "train_time_s": 105.9
+    },
+    {
+      "experiment_id": 5,
+      "seq_length": 100,
+      "hidden_dim": 32,
+      "n_parameters": 13601,
+      "train_loss": 0.002663194076710785,
+      "val_loss": 0.0010209676791771104,
+      "train_time_s": 95.26
+    },
+    {
+      "experiment_id": 6,
+      "seq_length": 100,
+      "hidden_dim": 64,
+      "n_parameters": 52801,
+      "train_loss": 0.0025634813234750933,
+      "val_loss": 0.0014103221821583688,
+      "train_time_s": 204.34
+    }
+  ],
+  "best_config": {
+    "seq_length": 50,
+    "hidden_dim": 64,
+    "n_parameters": 52801
+  },
+  "grid": {
+    "sequence_lengths": [
+      20,
+      50,
+      100
+    ],
+    "hidden_dims": [
+      32,
+      64
+    ]
+  }
+}

@@ -263,7 +263,7 @@ projects = [
     {"id": "P1", "title": "Inverse Waveguide Design", "desc": "Mono-objective Neural Surrogate for optimizing grating periods in AR waveguides.", "status": "live"},
     {"id": "P2", "title": "Rainbow Surrogate", "desc": "Multi-objective chromatic dispersion correction for see-through optics.", "status": "live"},
     {"id": "P3", "title": "Virtual Wind Tunnel", "desc": "Neural surrogate for real-time airfoil pressure prediction using 1D CNN.", "status": "live"},
-    {"id": "P4", "title": "Thermal PINN", "desc": "Physics-Informed Neural Network for thermal management in photonics.", "status": "locked"},
+    {"id": "P4", "title": "MEMS Oscilloscope", "desc": "Neural surrogate for electrostatic MEMS mirror dynamics via LSTM.", "status": "live"},
     {"id": "P5", "title": "Diffractive Lens Design", "desc": "Inverse design of meta-surfaces for wavefront shaping.", "status": "locked"},
     {"id": "P6", "title": "Spectral Encoder", "desc": "Autoencoder for spectral response compression and reconstruction.", "status": "locked"},
     {"id": "P7", "title": "Tolerance Predictor", "desc": "Manufacturing tolerance impact prediction via ensemble models.", "status": "locked"},
@@ -294,6 +294,7 @@ for row in range(2):
                         "P1": "pages/01_P1_WG_DOE.py",
                         "P2": "pages/02_P2_Rainbow_Solver.py",
                         "P3": "pages/03_P3_Virtual_Wind_Tunnel.py",
+                        "P4": "pages/04_P4_MEMS_Oscilloscope.py",
                     }
                     st.switch_page(page_map.get(project['id'], "pages/01_P1_WG_DOE.py"))
             else:
