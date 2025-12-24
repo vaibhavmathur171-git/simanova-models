@@ -88,6 +88,18 @@ st.markdown("""
     [data-testid="stSidebar"] * { color: #FFFFFF !important; }
     .author-footer { text-align: center; padding: 2rem 0 1rem 0; border-top: 1px solid #2d2d44; margin-top: 3rem; }
     .author-footer a { color: #4ECDC4 !important; text-decoration: none; margin: 0 0.5rem; }
+
+    /* Dropdown/Selectbox styling for dark mode */
+    [data-testid="stSidebar"] [data-baseweb="select"] { background-color: #2d2d44 !important; }
+    [data-testid="stSidebar"] [data-baseweb="select"] > div { background-color: #2d2d44 !important; color: #FFFFFF !important; }
+    [data-baseweb="popover"] { background-color: #1a1a2e !important; }
+    [data-baseweb="popover"] li { background-color: #1a1a2e !important; color: #FFFFFF !important; }
+    [data-baseweb="popover"] li:hover { background-color: #4ECDC4 !important; color: #000000 !important; }
+    [data-baseweb="menu"] { background-color: #1a1a2e !important; }
+    [data-baseweb="menu"] [role="option"] { color: #FFFFFF !important; background-color: #1a1a2e !important; }
+    [data-baseweb="menu"] [role="option"]:hover { background-color: #4ECDC4 !important; color: #000000 !important; }
+    [data-baseweb="select"] span { color: #FFFFFF !important; }
+    div[data-baseweb="select"] > div { border-color: #4ECDC4 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -669,68 +681,136 @@ with tab2:
     # =========================================================================
     # OBSERVER VIEW: Optimal vs Uncorrected Design
     # =========================================================================
-    st.markdown('<p class="subsection-header">Observer Eye View: Optimal vs Uncorrected Grating</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subsection-header">Ray Tracing: Optimized vs Uncorrected Grating</p>', unsafe_allow_html=True)
 
     col_opt, col_uncorr = st.columns(2)
 
     with col_opt:
         st.markdown("**Optimized Pitch (Photopic-Weighted)**")
         fig_opt = go.Figure()
-        fig_opt.add_shape(type="rect", x0=-1.5, x1=1.5, y0=-1, y1=1, fillcolor="#0a0a0f", line=dict(width=0))
+
+        # Dark background
+        fig_opt.add_shape(type="rect", x0=-2, x1=2, y0=-1.2, y1=1.2,
+                         fillcolor="#0a0a0f", line=dict(width=0))
+
+        # Grating structure at bottom
+        fig_opt.add_shape(type="rect", x0=-1.5, x1=1.5, y0=-1.0, y1=-0.85,
+                         fillcolor="#1a1a2e", line=dict(color="#4ECDC4", width=2))
 
         # Grating lines
-        for i in range(-15, 16):
-            fig_opt.add_shape(type="line", x0=i*0.06, x1=i*0.06, y0=-0.9, y1=-0.8, line=dict(color="#4ECDC4", width=1))
+        for i in range(-12, 13):
+            fig_opt.add_shape(type="line", x0=i*0.1, x1=i*0.1, y0=-1.0, y1=-0.85,
+                             line=dict(color="#4ECDC4", width=1))
 
-        # RGB beams - converging to near-same point
-        max_dev = max(abs(ang_b_ana - target_angle), abs(ang_r_ana - target_angle), 0.1)
-        scale = 0.6 / max_dev
+        # Incident white light (from top)
+        fig_opt.add_trace(go.Scatter(
+            x=[0, 0], y=[1.0, -0.85], mode='lines',
+            line=dict(color='#FFFFFF', width=4), name='Incident Light',
+            hoverinfo='name'
+        ))
 
-        for angle, color, name in [
-            (ang_b_ana, '#45B7D1', 'B'),
-            (ang_g_ana, '#4ECDC4', 'G'),
-            (ang_r_ana, '#FF6B6B', 'R'),
-        ]:
-            x_end = (angle - target_angle) * scale
-            fig_opt.add_trace(go.Scatter(x=[0, x_end], y=[-0.75, 0.6], mode='lines',
-                              line=dict(color=color, width=6), name=name, opacity=0.85))
+        # Diffracted RGB rays - converging nicely
+        ray_data = [
+            (ang_b_ana, '#3498db', 'Blue 450nm'),
+            (ang_g_ana, '#2ecc71', 'Green 532nm'),
+            (ang_r_ana, '#e74c3c', 'Red 635nm'),
+        ]
 
-        fig_opt.add_annotation(x=0, y=0.85, text="[eye] Tight RGB Convergence", font=dict(color='#2ecc71', size=11), showarrow=False)
-        fig_opt.add_annotation(x=0, y=-1.0, text=f"L = {analytical_pitch:.1f} nm", font=dict(color='#4ECDC4', size=10), showarrow=False)
+        for angle, color, name in ray_data:
+            # Normalize angle deviation for visualization
+            angle_rad = np.radians(angle - target_angle) * 3  # Scale for visibility
+            x_end = np.sin(angle_rad) * 0.8
+            fig_opt.add_trace(go.Scatter(
+                x=[0, x_end], y=[-0.85, 0.5], mode='lines',
+                line=dict(color=color, width=5), name=name,
+                hoverinfo='name', opacity=0.9
+            ))
 
-        fig_opt.update_layout(template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117',
-                              height=300, showlegend=False,
-                              xaxis=dict(visible=False, range=[-1.2, 1.2]),
-                              yaxis=dict(visible=False, range=[-1.1, 1.0]),
-                              margin=dict(l=20, r=20, t=20, b=20))
+        # Eye/observer icon at convergence point
+        fig_opt.add_trace(go.Scatter(
+            x=[0], y=[0.7], mode='markers+text',
+            marker=dict(size=30, color='#2ecc71', symbol='circle'),
+            text=['EYE'], textposition='middle center',
+            textfont=dict(color='white', size=8, family='Arial Black'),
+            hoverinfo='skip'
+        ))
+
+        # Labels
+        fig_opt.add_annotation(x=0, y=1.1, text="TIGHT CONVERGENCE",
+                              font=dict(color='#2ecc71', size=12, family='Arial Black'),
+                              showarrow=False)
+        fig_opt.add_annotation(x=0, y=-1.15, text=f"Pitch = {analytical_pitch:.1f} nm",
+                              font=dict(color='#4ECDC4', size=11), showarrow=False)
+
+        fig_opt.update_layout(
+            template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0a0a0f',
+            height=350, showlegend=False,
+            xaxis=dict(visible=False, range=[-1.5, 1.5], fixedrange=True),
+            yaxis=dict(visible=False, range=[-1.3, 1.2], fixedrange=True),
+            margin=dict(l=10, r=10, t=10, b=10)
+        )
         st.plotly_chart(fig_opt, use_container_width=True, config=PLOTLY_CONFIG)
 
     with col_uncorr:
-        st.markdown("**Uncorrected Design (No Optimization)**")
+        st.markdown("**Uncorrected Design (Visible Rainbow Fringing)**")
         fig_uncorr = go.Figure()
-        fig_uncorr.add_shape(type="rect", x0=-1.5, x1=1.5, y0=-1, y1=1, fillcolor="#0a0a0f", line=dict(width=0))
 
-        # Grating lines
-        for i in range(-15, 16):
-            fig_uncorr.add_shape(type="line", x0=i*0.06, x1=i*0.06, y0=-0.9, y1=-0.8, line=dict(color="#666", width=1))
+        # Dark background
+        fig_uncorr.add_shape(type="rect", x0=-2, x1=2, y0=-1.2, y1=1.2,
+                            fillcolor="#0a0a0f", line=dict(width=0))
 
-        # Exaggerated dispersion (2x penalty for visualization)
-        for angle, color, name, offset in [
-            (ang_b_ana, '#45B7D1', 'B', -0.4),
-            (ang_g_ana, '#4ECDC4', 'G', 0),
-            (ang_r_ana, '#FF6B6B', 'R', 0.35),
-        ]:
-            fig_uncorr.add_trace(go.Scatter(x=[0, offset], y=[-0.75, 0.6], mode='lines',
-                                  line=dict(color=color, width=6), name=name, opacity=0.85))
+        # Grating structure
+        fig_uncorr.add_shape(type="rect", x0=-1.5, x1=1.5, y0=-1.0, y1=-0.85,
+                            fillcolor="#1a1a2e", line=dict(color="#666", width=2))
 
-        fig_uncorr.add_annotation(x=0, y=0.85, text="[rainbow] Rainbow Fringing", font=dict(color='#FF6B6B', size=11), showarrow=False)
-        fig_uncorr.add_annotation(x=0, y=-1.0, text="No Optimization", font=dict(color='#666', size=10), showarrow=False)
+        for i in range(-12, 13):
+            fig_uncorr.add_shape(type="line", x0=i*0.1, x1=i*0.1, y0=-1.0, y1=-0.85,
+                                line=dict(color="#666", width=1))
 
-        fig_uncorr.update_layout(template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117',
-                                 height=300, showlegend=False,
-                                 xaxis=dict(visible=False, range=[-1.2, 1.2]),
-                                 yaxis=dict(visible=False, range=[-1.1, 1.0]),
-                                 margin=dict(l=20, r=20, t=20, b=20))
+        # Incident white light
+        fig_uncorr.add_trace(go.Scatter(
+            x=[0, 0], y=[1.0, -0.85], mode='lines',
+            line=dict(color='#FFFFFF', width=4), name='Incident Light'
+        ))
+
+        # Dispersed RGB rays - showing rainbow spread
+        dispersed_rays = [
+            (-0.5, '#3498db', 'Blue - Over-diffracted'),
+            (0.0, '#2ecc71', 'Green - Target'),
+            (0.4, '#e74c3c', 'Red - Under-diffracted'),
+        ]
+
+        for x_offset, color, name in dispersed_rays:
+            fig_uncorr.add_trace(go.Scatter(
+                x=[0, x_offset], y=[-0.85, 0.5], mode='lines',
+                line=dict(color=color, width=5), name=name, opacity=0.9
+            ))
+
+        # Rainbow arc to show color separation
+        theta_arc = np.linspace(-0.3, 0.3, 50)
+        for i, (color, offset) in enumerate([('#3498db', -0.15), ('#2ecc71', 0), ('#e74c3c', 0.15)]):
+            x_arc = (theta_arc + offset) * 1.5
+            y_arc = 0.55 + np.cos(theta_arc * 5) * 0.05
+            fig_uncorr.add_trace(go.Scatter(
+                x=x_arc, y=y_arc, mode='lines',
+                line=dict(color=color, width=8), opacity=0.6,
+                hoverinfo='skip'
+            ))
+
+        # Warning icon
+        fig_uncorr.add_annotation(x=0, y=1.1, text="RAINBOW FRINGING",
+                                 font=dict(color='#e74c3c', size=12, family='Arial Black'),
+                                 showarrow=False)
+        fig_uncorr.add_annotation(x=0, y=-1.15, text="Colors separate at eye",
+                                 font=dict(color='#888', size=11), showarrow=False)
+
+        fig_uncorr.update_layout(
+            template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0a0a0f',
+            height=350, showlegend=False,
+            xaxis=dict(visible=False, range=[-1.5, 1.5], fixedrange=True),
+            yaxis=dict(visible=False, range=[-1.3, 1.2], fixedrange=True),
+            margin=dict(l=10, r=10, t=10, b=10)
+        )
         st.plotly_chart(fig_uncorr, use_container_width=True, config=PLOTLY_CONFIG)
 
     # =========================================================================
