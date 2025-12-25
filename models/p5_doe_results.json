@@ -1,0 +1,55 @@
+{
+  "experiments": [
+    {
+      "experiment_id": 1,
+      "depth": 2,
+      "base_filters": 16,
+      "n_parameters": 41521,
+      "train_loss": 0.004653711835853756,
+      "val_loss": 0.004624197778936762,
+      "train_time_s": 40.19
+    },
+    {
+      "experiment_id": 2,
+      "depth": 2,
+      "base_filters": 32,
+      "n_parameters": 163937,
+      "train_loss": 0.0040853409748524425,
+      "val_loss": 0.003473468080091362,
+      "train_time_s": 49.9
+    },
+    {
+      "experiment_id": 3,
+      "depth": 3,
+      "base_filters": 16,
+      "n_parameters": 169713,
+      "train_loss": 0.001934171391185373,
+      "val_loss": 0.001126438656893487,
+      "train_time_s": 32.27
+    },
+    {
+      "experiment_id": 4,
+      "depth": 3,
+      "base_filters": 32,
+      "n_parameters": 674273,
+      "train_loss": 0.0013165567006217316,
+      "val_loss": 0.001219983933529315,
+      "train_time_s": 72.58
+    }
+  ],
+  "best_config": {
+    "depth": 3,
+    "base_filters": 16,
+    "n_parameters": 169713
+  },
+  "grid": {
+    "depths": [
+      2,
+      3
+    ],
+    "base_filters": [
+      16,
+      32
+    ]
+  }
+}
