@@ -264,7 +264,7 @@ projects = [
     {"id": "P2", "title": "Rainbow Surrogate", "desc": "Multi-objective chromatic dispersion correction for see-through optics.", "status": "live"},
     {"id": "P3", "title": "Virtual Wind Tunnel", "desc": "Neural surrogate for real-time airfoil pressure prediction using 1D CNN.", "status": "live"},
     {"id": "P4", "title": "MEMS Oscilloscope", "desc": "Neural surrogate for electrostatic MEMS mirror dynamics via LSTM.", "status": "live"},
-    {"id": "P5", "title": "Diffractive Lens Design", "desc": "Inverse design of meta-surfaces for wavefront shaping.", "status": "locked"},
+    {"id": "P5", "title": "LCOS Fringing Designer", "desc": "1D U-Net surrogate for LC director profile and fringing field prediction.", "status": "live"},
     {"id": "P6", "title": "Spectral Encoder", "desc": "Autoencoder for spectral response compression and reconstruction.", "status": "locked"},
     {"id": "P7", "title": "Tolerance Predictor", "desc": "Manufacturing tolerance impact prediction via ensemble models.", "status": "locked"},
     {"id": "P8", "title": "Multi-Physics Fusion", "desc": "Joint optical-thermal-mechanical co-optimization engine.", "status": "locked"},
@@ -295,6 +295,7 @@ for row in range(2):
                         "P2": "pages/02_P2_Rainbow_Solver.py",
                         "P3": "pages/03_P3_Virtual_Wind_Tunnel.py",
                         "P4": "pages/04_P4_MEMS_Oscilloscope.py",
+                        "P5": "pages/05_P5_LCOS_Designer.py",
                     }
                     st.switch_page(page_map.get(project['id'], "pages/01_P1_WG_DOE.py"))
             else:
