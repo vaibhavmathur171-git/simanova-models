@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Simanova: 10 Days, 10 Engines - The Physics-AI Sprint
-System Architect Dashboard
+Simanova: Neural Surrogate Engines
+Differentiable Physics Across Hardware Domains
 """
 import streamlit as st
 from pathlib import Path
@@ -14,7 +14,7 @@ SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 # PAGE CONFIG
 # =============================================================================
 st.set_page_config(
-    page_title="Simanova | Physics-AI Sprint",
+    page_title="Simanova | Neural Surrogate Engines",
     page_icon="AI",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -233,8 +233,8 @@ with col2:
 st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
 
 st.markdown("""
-<h1 class="hero-title">10 Days. 10 Physics-AI Engines.</h1>
-<p class="hero-subtitle">Neural Surrogates for Hardware Design | Differentiable Physics at Scale</p>
+<h1 class="hero-title">Neural Surrogate Engines</h1>
+<p class="hero-subtitle">Differentiable Physics Across Hardware Domains</p>
 """, unsafe_allow_html=True)
 
 # =============================================================================
