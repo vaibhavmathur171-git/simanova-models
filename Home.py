@@ -265,48 +265,39 @@ projects = [
     {"id": "P3", "title": "Virtual Wind Tunnel", "desc": "Neural surrogate for real-time airfoil pressure prediction using 1D CNN.", "status": "live"},
     {"id": "P4", "title": "MEMS Oscilloscope", "desc": "Neural surrogate for electrostatic MEMS mirror dynamics via LSTM.", "status": "live"},
     {"id": "P5", "title": "LCOS Fringing Designer", "desc": "1D U-Net surrogate for LC director profile and fringing field prediction.", "status": "live"},
-    {"id": "P6", "title": "Spectral Encoder", "desc": "Autoencoder for spectral response compression and reconstruction.", "status": "locked"},
-    {"id": "P7", "title": "Tolerance Predictor", "desc": "Manufacturing tolerance impact prediction via ensemble models.", "status": "locked"},
-    {"id": "P8", "title": "Multi-Physics Fusion", "desc": "Joint optical-thermal-mechanical co-optimization engine.", "status": "locked"},
-    {"id": "P9", "title": "Real-Time Inference", "desc": "Edge-deployed surrogate for in-line process control.", "status": "locked"},
-    {"id": "P10", "title": "Foundation Model", "desc": "Pre-trained photonics transformer for few-shot adaptation.", "status": "locked"},
 ]
 
-# Create 2x5 grid
-for row in range(2):
-    cols = st.columns(5, gap="medium")
-    for col_idx, col in enumerate(cols):
-        project_idx = row * 5 + col_idx
-        project = projects[project_idx]
+# Create 1x5 grid for live projects
+cols = st.columns(5, gap="medium")
+for col_idx, col in enumerate(cols):
+    project = projects[col_idx]
+    with col:
+        st.markdown(f"""
+        <div class="project-card project-card-live">
+            <span class="card-number card-number-live">{project['id']}</span>
+            <span class="status-badge status-live">LIVE</span>
+            <h3 class="card-title">{project['title']}</h3>
+            <p class="card-desc">{project['desc']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Launch Engine", key=f"btn_{project['id']}", use_container_width=True):
+            page_map = {
+                "P1": "pages/01_P1_WG_DOE.py",
+                "P2": "pages/02_P2_Rainbow_Solver.py",
+                "P3": "pages/03_P3_Virtual_Wind_Tunnel.py",
+                "P4": "pages/04_P4_MEMS_Oscilloscope.py",
+                "P5": "pages/05_P5_LCOS_Designer.py",
+            }
+            st.switch_page(page_map.get(project['id'], "pages/01_P1_WG_DOE.py"))
 
-        with col:
-            if project["status"] == "live":
-                st.markdown(f"""
-                <div class="project-card project-card-live">
-                    <span class="card-number card-number-live">{project['id']}</span>
-                    <span class="status-badge status-live">LIVE</span>
-                    <h3 class="card-title">{project['title']}</h3>
-                    <p class="card-desc">{project['desc']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                if st.button("Launch Engine", key=f"btn_{project['id']}", use_container_width=True):
-                    page_map = {
-                        "P1": "pages/01_P1_WG_DOE.py",
-                        "P2": "pages/02_P2_Rainbow_Solver.py",
-                        "P3": "pages/03_P3_Virtual_Wind_Tunnel.py",
-                        "P4": "pages/04_P4_MEMS_Oscilloscope.py",
-                        "P5": "pages/05_P5_LCOS_Designer.py",
-                    }
-                    st.switch_page(page_map.get(project['id'], "pages/01_P1_WG_DOE.py"))
-            else:
-                st.markdown(f"""
-                <div class="project-card project-card-locked">
-                    <span class="card-number card-number-locked">{project['id']}</span>
-                    <span class="status-badge status-locked">LOCKED</span>
-                    <h3 class="card-title card-title-locked">{project['title']}</h3>
-                    <p class="card-desc card-desc-locked">{project['desc']}</p>
-                </div>
-                """, unsafe_allow_html=True)
+st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
+st.markdown("""
+<div style="text-align: center; padding: 1.5rem; background: rgba(102, 126, 234, 0.05); border: 1px dashed rgba(102, 126, 234, 0.25); border-radius: 12px;">
+    <p style="color: #667eea; font-size: 0.95rem; margin: 0; letter-spacing: 0.05em;">
+        More surrogate engines in progress — this is an ongoing exploration.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("<div class='custom-divider'></div>", unsafe_allow_html=True)
 
