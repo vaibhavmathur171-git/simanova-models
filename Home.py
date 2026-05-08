@@ -345,7 +345,7 @@ st.markdown("""
         Built by <strong style="color: #FFFFFF;">Vaibhav Mathur</strong>
     </p>
     <p style="color: #4a5568; font-size: 0.85rem; margin: 0;">
-        <a href="https://x.com/vaibhavmathur91" target="_blank" style="color: #667eea; text-decoration: none; margin-right: 1rem;">X (Twitter)</a>
+        <a href="https://x.com/vaibhavmathur" target="_blank" style="color: #667eea; text-decoration: none; margin-right: 1rem;">X (Twitter)</a>
         <a href="https://linkedin.com/in/vaibhavmathur91" target="_blank" style="color: #667eea; text-decoration: none; margin-right: 1rem;">LinkedIn</a>
         <a href="https://github.com/vaibhavmathur171-git/simanova-models" target="_blank" style="color: #667eea; text-decoration: none;">GitHub</a>
     </p>
